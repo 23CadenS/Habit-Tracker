@@ -4,43 +4,77 @@
 <meta charset="UTF-8">
 <title>Hex Habit Tracker</title>
 <style>
+/* 8-bit font */
+@import url('https://fonts.cdnfonts.com/css/press-start-2p');
+
 :root { --hex-size: 86px; }
-body { margin:0; background:#050505; font-family:system-ui,sans-serif; color:#ddd; overflow-x:hidden; }
+
+body {
+  margin:0;
+  background:#050505;
+  font-family: 'Press Start 2P', cursive;
+  color:#ddd;
+  overflow-x:hidden;
+}
+
 canvas { position:fixed; inset:0; z-index:0; }
-#app { position:relative; z-index:2; padding:20px 20px 200px; max-width:1400px; margin:auto; }
-#stats { text-align:center; margin-bottom:16px; font-size:18px; }
+
+#app { position:relative; z-index:2; padding:20px 20px 220px; max-width:1400px; margin:auto; }
+#stats { text-align:center; margin-bottom:16px; font-size:16px; }
 #grid { position:relative; margin:auto; transition: transform 0.15s ease-out; }
 
 .hex {
   position:absolute; width:var(--hex-size); height:calc(var(--hex-size)*0.866);
-  background:#2b2b2b; clip-path:polygon(26% 3%,74% 3%,97% 50%,74% 97%,26% 97%,3% 50%);
-  border-radius:25%; display:flex; align-items:center; justify-content:center; font-size:11px; color:#e0e0e0; cursor:pointer;
+  background:#3b2b5f; /* purple tint for unchecked */
+  clip-path:polygon(26% 3%,74% 3%,97% 50%,74% 97%,26% 97%,3% 50%);
+  border-radius:30%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; color:#e0e0e0; cursor:pointer;
   box-shadow:0 0 0 1.4px rgba(255,255,255,0.75),0 0 12px rgba(255,255,255,0.55),0 0 26px rgba(255,255,255,0.25),inset 0 0 10px rgba(255,255,255,0.18);
   transition: transform 0.15s cubic-bezier(.2,1.4,.4,1), box-shadow 0.15s cubic-bezier(.2,1.4,.4,1), background 0.15s;
 }
-.hex:hover { transform: scale(1.18) translateY(-8px); z-index:5; box-shadow:0 0 0 1.8px rgba(255,255,255,1),0 0 26px rgba(255,255,255,1),0 0 60px rgba(255,255,255,0.6),inset 0 0 18px rgba(255,255,255,0.35);}
+.hex.hoverable:hover {
+  transform: scale(1.15);
+  box-shadow:0 0 0 1.8px rgba(255,255,255,1),0 0 26px rgba(255,255,255,1),0 0 60px rgba(255,255,255,0.6),inset 0 0 18px rgba(255,255,255,0.35);
+  z-index:5;
+}
+
 .green { background:#1f7f50; box-shadow:0 0 0 1.6px rgba(220,255,235,1),0 0 24px rgba(90,255,200,0.85),0 0 60px rgba(60,200,150,0.55);}
 .red { background:#7f1f1f; box-shadow:0 0 0 1.6px rgba(255,220,220,1),0 0 24px rgba(255,90,90,0.85),0 0 60px rgba(200,60,60,0.55);}
 .yellow { background:#7f7320; box-shadow:0 0 0 1.6px rgba(255,245,200,1),0 0 24px rgba(255,230,130,0.9),0 0 60px rgba(200,180,70,0.55);}
 .today { box-shadow:0 0 0 2.2px white,0 0 34px rgba(255,255,255,1),0 0 80px rgba(255,255,255,0.9),0 0 140px rgba(255,255,255,0.5);}
 .locked { opacity:0.55; }
 
+/* Controls */
 #controls {
-  position: fixed; bottom: 0; inset-inline:0; background:#0d0d0d; padding:14px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+  position:fixed; bottom:0; inset-inline:0; background:#0d0d0d; padding:14px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
   box-shadow:0 -10px 30px rgba(0,0,0,0.9); z-index:3;
 }
-button, input { background:#222; border:none; color:#ddd; padding:10px 14px; border-radius:6px; font-size:14px; }
+button,input { background:#222; border:none; color:#ddd; padding:10px 14px; border-radius:6px; font-size:14px; font-family: 'Press Start 2P', cursive; }
 button:hover { background:#333; }
-input[type=number] { width:80px; }
+input[type=number]{ width:60px; border-radius:6px; }
 
+/* GitHub token */
+#loginBtn {
+  position:fixed; bottom:12px; left:12px; z-index:9999; padding:8px 10px; background:#111; color:#fff; border-radius:10px; display:flex; gap:4px;
+}
+#loginBtn input { width:140px; background:#000; color:#fff; padding:6px; border:1px solid #444; border-radius:6px; font-size:10px; }
+
+/* Slider style */
+input[type=range] {
+  -webkit-appearance:none; width:150px; height:6px; background:#444; border-radius:3px; outline:none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; height:18px; width:18px; border-radius:50%; background:#fff; cursor:pointer; box-shadow:0 0 2px #fff;
+}
+input[type=range]::-moz-range-thumb { height:18px; width:18px; border-radius:50%; background:#fff; cursor:pointer; }
+
+/* Saving indicator */
 #syncStatus { position:fixed; bottom:12px; right:12px; font-size:12px; color:#fff; font-family:sans-serif; z-index:9999; }
-#loginBtn { position:fixed; bottom:100px; left:12px; z-index:9999; padding:10px 14px; background:#111; color:#fff; border-radius:10px; cursor:pointer; }
 #animToggle { position:fixed; bottom:180px; left:12px; z-index:9999; color:#fff; font-family:sans-serif; }
 </style>
 </head>
-
 <body>
-
 <canvas id="particles"></canvas>
 
 <div id="app">
@@ -60,16 +94,19 @@ input[type=number] { width:80px; }
   <input id="daysInput" type="number" min="1" max="500">
 </div>
 
+<div id="loginBtn">
+  <input id="ghToken" type="password" placeholder="GitHub Token">
+  <button onclick="saveToken()">Connect</button>
+</div>
+
 <div id="syncStatus">Not connected</div>
-<div id="loginBtn">Login with GitHub</div>
 <div id="animToggle">
-  <label>Animations: <input type="checkbox" id="animSwitch"></label>
+  <label>Animations <input type="checkbox" id="animSwitch"></label>
 </div>
 
 <script>
 /* CORE DATA */
-let storeKey="hexData", autoKey="hexAutoDays", data=JSON.parse(localStorage.getItem(storeKey)||"{}"), override=false, selected=null;
-let saving=false;
+let storeKey="hexData", autoKey="hexAutoDays", data=JSON.parse(localStorage.getItem(storeKey)||"{}"), override=false, selected=null, saving=false;
 
 /* TODAY/DATE */
 const today=()=>new Date().toISOString().split("T")[0];
@@ -105,7 +142,13 @@ function calcStreaks(){
   return {max,cur:run};
 }
 
-/* RENDER HEX GRID */
+/* ANIMATIONS */
+let animEnabled=localStorage.getItem("animEnabled")!=="false";
+const animSwitch=document.getElementById("animSwitch");
+animSwitch.checked=animEnabled;
+animSwitch.onchange=()=>{animEnabled=animSwitch.checked; localStorage.setItem("animEnabled",animEnabled);}
+
+/* RENDER GRID */
 function render(){
   grid.innerHTML="";
   const size=Math.max(36,96-days*0.12);
@@ -117,6 +160,7 @@ function render(){
     const d=datePlus(i),k=key(d);
     const hex=document.createElement("div");
     hex.className="hex";
+    if(animEnabled) hex.classList.add("hoverable");
     if(data[k]) hex.classList.add(data[k]);
     if(k===today()){ hex.classList.add("today"); selected=d; }
     if(!override && k!==today()) hex.classList.add("locked");
@@ -132,54 +176,29 @@ function render(){
 }
 render(); onresize=render;
 
-/* PARTICLES & MOUSE REACT */
+/* PARTICLES */
 const ctx=particles.getContext("2d");
-let animEnabled=localStorage.getItem("animEnabled")!=="false";
-const animSwitch=document.getElementById("animSwitch");
-animSwitch.checked=animEnabled;
-animSwitch.onchange=()=>{animEnabled=animSwitch.checked; localStorage.setItem("animEnabled",animEnabled);}
-
 function resize(){particles.width=innerWidth;particles.height=innerHeight;}
 resize(); onresize=resize;
 
 const parts=[...Array(100)].map(()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*2+.5,v:Math.random()*.25+.1}));
 (function anim(){
-  if(animEnabled){ ctx.clearRect(0,0,particles.width,particles.height); ctx.fillStyle="rgba(255,255,255,.18)";
+  if(animEnabled){
+    ctx.clearRect(0,0,particles.width,particles.height); ctx.fillStyle="rgba(255,255,255,.18)";
     parts.forEach(p=>{p.y-=p.v;if(p.y<0)p.y=particles.height; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();});
   }
   if(animEnabled) grid.style.transform=`translate(${(event?.clientX||innerWidth/2)/innerWidth-.5*16}px,${(event?.clientY||innerHeight/2)/innerHeight-.5*16}px)`;
   requestAnimationFrame(anim);
 })();
 
-/* GITHUB OAUTH LOGIN */
-const GH={owner:"23CadenS",repo:"Habit-Tracker",path:"data.json",api:"https://api.github.com/repos",sha:null,token:null};
-const syncStatus=document.getElementById("syncStatus");
-loginBtn.onclick=async()=>{
-  const url="https://github.com/login/oauth/authorize?client_id=YOUR_CLIENT_ID&scope=repo";
-  window.open(url,"_blank");
-  alert("After authorization, paste the OAuth token in console (or replace with server redirect flow).");
-}
-
-/* SAVE DATA */
-async function ghFetch(){ if(!GH.token){ syncStatus.textContent="No GitHub token"; return null; }
-try{ const res=await fetch(`${GH.api}/${GH.owner}/${GH.repo}/contents/${GH.path}`,{ headers:{ Authorization:`Bearer ${GH.token}` }});
-if(!res.ok) throw new Error(res.statusText); const d=await res.json(); GH.sha=d.sha; const content=JSON.parse(atob(d.content)); syncStatus.textContent="Synced ✓"; return content;}
-catch(e){console.error(e); syncStatus.textContent="GitHub fetch error"; return null;}}
-
-async function ghSave(payload){ if(!GH.token){ syncStatus.textContent="No GitHub token"; return;} saving=true; syncStatus.textContent="Saving...";
-try{ const res=await fetch(`${GH.api}/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
-method:"PUT", headers:{Authorization:`Bearer ${GH.token}`, "Content-Type":"application/json"},
-body:JSON.stringify({message:"Update habit data",content:btoa(JSON.stringify(payload)),sha:GH.sha})});
-if(!res.ok) throw new Error(res.statusText); const d=await res.json(); GH.sha=d.content.sha; syncStatus.textContent="Synced ✓";}catch(e){console.error(e); syncStatus.textContent="GitHub save error";}
-saving=false;}
+/* SAVE TOKEN */
+function saveToken(){ GH.token=document.getElementById("ghToken").value; localStorage.setItem("ghToken",GH.token); syncStatus.textContent="Connected ✓"; }
 
 /* HEX CHANGE */
+const GH={token:localStorage.getItem("ghToken")};
 function setDay(color){ if(!selected) return; const k=key(selected);
 if(!override && k!==today()) return; if(color===null) delete data[k]; else data[k]=color;
-localStorage.setItem(storeKey,JSON.stringify(data)); render(); ghSave({days:data});}
-
-/* WARN UNSAVED LEAVE */
-window.addEventListener("beforeunload",e=>{if(saving){e.preventDefault(); e.returnValue="Changes are saving. Are you sure you want to leave?";}});
+localStorage.setItem(storeKey,JSON.stringify(data)); render();}
 </script>
 </body>
 </html>
