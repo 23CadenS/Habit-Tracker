@@ -38,15 +38,12 @@ canvas {
 }
 
 #grid {
-    position: relative;
     display: grid;
-    grid-template-columns: repeat(auto-fill, calc(var(--size) * 1.5));
+    grid-auto-flow: column;
+    grid-auto-columns: calc(var(--size) * 0.87);
     justify-content: center;
-    gap: 0;
-    filter: drop-shadow(0 0 10px rgba(255,255,255,0.03));
 }
 
-/* Regular hexagon */
 .hex {
     width: var(--size);
     height: calc(var(--size) * 1.1547);
@@ -68,8 +65,8 @@ canvas {
     color: #aaa;
     cursor: pointer;
     transition: 0.3s;
-    position: relative;
 }
+
 
 .hex:nth-child(odd) {
     transform: translateY(calc(var(--size) * 0.577));
@@ -185,33 +182,41 @@ function calcMaxStreak(){
 }
 
 /* ---------------- render ---------------- */
-function render(){
-    const grid=document.getElementById("grid");
-    grid.innerHTML="";
+function render() {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
 
-    const size=Math.max(36,96-days*0.15);
-    document.documentElement.style.setProperty("--size",size+"px");
+    const size = Math.max(38, 96 - days * 0.15);
+    document.documentElement.style.setProperty("--size", size + "px");
 
-    for(let i=0;i<days;i++){
-        const d=datePlus(i);
-        const k=key(d);
-        const hex=document.createElement("div");
-        hex.className="hex";
-        if(data[k])hex.classList.add(data[k]);
-        if(k===today())hex.classList.add("today");
-        if(!override && k!==today())hex.classList.add("locked");
+    const perColumn = Math.ceil(Math.sqrt(days));
 
-        hex.textContent=d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+    for (let i = 0; i < days; i++) {
+        const d = datePlus(i);
+        const k = key(d);
 
-        hex.onclick=()=>{
-            selected=d;
-            document.querySelectorAll(".hex").forEach(h=>h.style.outline="");
-            hex.style.outline="2px solid white";
+        const hex = document.createElement("div");
+        hex.className = "hex";
+
+        if (data[k]) hex.classList.add(data[k]);
+        if (k === today()) hex.classList.add("today");
+        if (!override && k !== today()) hex.classList.add("locked");
+
+        hex.textContent = d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+
+        hex.style.gridRow = (i % perColumn) + 1;
+        hex.style.gridColumn = Math.floor(i / perColumn) + 1;
+
+        hex.onclick = () => {
+            selected = d;
+            document.querySelectorAll(".hex").forEach(h => h.style.outline = "");
+            hex.style.outline = "2px solid white";
         };
+
         grid.appendChild(hex);
     }
 
-    document.getElementById("streak").textContent=calcMaxStreak();
+    document.getElementById("streak").textContent = calcMaxStreak();
 }
 
 render();
