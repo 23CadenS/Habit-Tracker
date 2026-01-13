@@ -1,20 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Hex Habit Tracker</title>
 
 <style>
-:root { --size: 80px; }
+:root {
+    --hex-size: 86px;
+}
 
 body {
     margin: 0;
-    background: #050505;
-    font-family: system-ui;
+    background: #060606;
+    font-family: system-ui, sans-serif;
     color: #ddd;
     overflow-x: hidden;
 }
 
+/* PARTICLES */
 canvas {
     position: fixed;
     inset: 0;
@@ -24,74 +27,82 @@ canvas {
 #app {
     position: relative;
     z-index: 2;
+    padding: 20px 20px 160px;
     max-width: 1400px;
     margin: auto;
-    padding: 20px 20px 160px;
-    transition: transform 0.2s;
 }
 
 #stats {
     text-align: center;
+    margin-bottom: 14px;
     font-size: 18px;
-    margin-bottom: 10px;
 }
 
-/* Honeycomb container */
+/* GRID */
 #grid {
     position: relative;
     margin: auto;
+    transition: transform 0.15s ease-out;
 }
 
-/* Flat-top regular hexagon */
+/* HEXAGON */
 .hex {
     position: absolute;
-    width: var(--size);
-    height: calc(var(--size) * 0.866);
+    width: var(--hex-size);
+    height: calc(var(--hex-size) * 0.866);
     background: #2a2a2a;
     clip-path: polygon(
-        25% 0%, 75% 0%,
+        25% 0%,
+        75% 0%,
         100% 50%,
-        75% 100%, 25% 100%,
+        75% 100%,
+        25% 100%,
         0% 50%
     );
-    border-radius: 12%;
+    border-radius: 10%;
+    outline: 1.3px solid rgba(235,235,235,0.4);
+    outline-offset: -1px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
     color: #aaa;
     cursor: pointer;
-    transition: 0.3s;
+    transition: transform 0.25s, box-shadow 0.25s, background 0.25s;
 }
 
-/* Colors */
-.hex.green { background:#1f7f50; color:#eafff4; }
-.hex.red { background:#7f1f1f; color:#ffe5e5; }
-.hex.yellow { background:#7f7320; color:#fff6c8; }
+.hex:hover {
+    transform: scale(1.05);
+}
 
-/* Today glow */
-.hex.today {
+/* COLORS */
+.green { background: #1f7f50; color: #eafff4; }
+.red { background: #7f1f1f; color: #ffe5e5; }
+.yellow { background: #7f7320; color: #fff6c8; }
+
+/* TODAY */
+.today {
     box-shadow:
         0 0 14px rgba(255,255,255,0.9),
-        0 0 40px rgba(255,255,255,0.6);
+        0 0 34px rgba(255,255,255,0.6);
 }
 
-.hex.locked { opacity: 0.6; }
+/* LOCKED */
+.locked { opacity: 0.6; }
 
-/* Controls */
+/* CONTROLS */
 #controls {
     position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(10,10,10,0.95);
-    backdrop-filter: blur(10px);
+    inset-inline: 0;
+    background: #0d0d0d;
     padding: 14px;
     display: flex;
-    flex-wrap: wrap;
     gap: 10px;
+    flex-wrap: wrap;
     justify-content: center;
-    z-index: 5;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.85);
+    z-index: 3;
 }
 
 button, input {
@@ -100,19 +111,22 @@ button, input {
     color: #ddd;
     padding: 10px 14px;
     border-radius: 6px;
+    font-size: 14px;
 }
-button:hover { background:#333; }
-input[type=number]{width:80px;}
+
+button:hover { background: #333; }
+input[type=number] { width: 80px; }
 </style>
 </head>
 
 <body>
-<canvas id="bg"></canvas>
+
+<canvas id="particles"></canvas>
 
 <div id="app">
     <div id="stats">
-        Current streak: <span id="cur">0</span> |
-        Max streak: <span id="max">0</span>
+        Max streak: <span id="maxStreak">0</span> |
+        Current streak: <span id="curStreak">0</span>
     </div>
     <div id="grid"></div>
 </div>
@@ -124,143 +138,204 @@ input[type=number]{width:80px;}
     <button id="overrideBtn">Override: OFF</button>
 
     <label>Days
-        <input id="daysSlider" type="range" min="14" max="365" value="90">
+        <input id="daysSlider" type="range" min="14" max="500">
     </label>
-    <input id="daysInput" type="number" min="1" max="365" value="90">
+    <input id="daysInput" type="number" min="1" max="500">
 </div>
 
 <script>
-/* ---------- Data ---------- */
-const storeKey="hexData";
-let data=JSON.parse(localStorage.getItem(storeKey)||"{}");
-let override=false, selected=null, days=90;
+/* ---------------- DATA ---------------- */
+const storeKey = "hexData";
+const autoKey = "hexAutoDays";
+let data = JSON.parse(localStorage.getItem(storeKey) || "{}");
 
-const slider=daysSlider, num=daysInput;
+let override = false;
+let selected = null;
 
-slider.oninput=()=>{days=+slider.value;num.value=days;render();}
-num.onchange=()=>{days=Math.min(365,Math.max(1,+num.value||1));slider.value=days;render();}
+/* ---------------- DATE HELPERS ---------------- */
+function today() {
+    return new Date().toISOString().split("T")[0];
+}
+function datePlus(n) {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return d;
+}
+function key(d) {
+    return d.toISOString().split("T")[0];
+}
 
-overrideBtn.onclick=()=>{
-    override=!override;
-    overrideBtn.innerText=override?"Override: ON":"Override: OFF";
+/* ---------------- AUTO DAY GROWTH ---------------- */
+function getAutoDays() {
+    const t = today();
+    let saved = JSON.parse(localStorage.getItem(autoKey) || "{}");
+
+    if (!saved.date) saved = { date: t, days: 60 };
+
+    const diff = Math.floor((new Date(t) - new Date(saved.date)) / 86400000);
+    if (diff > 0) {
+        saved.days += diff;
+        saved.date = t;
+    }
+
+    localStorage.setItem(autoKey, JSON.stringify(saved));
+    return saved.days;
+}
+
+let days = getAutoDays();
+
+/* ---------------- CONTROLS ---------------- */
+const slider = document.getElementById("daysSlider");
+const input = document.getElementById("daysInput");
+
+slider.value = input.value = days;
+
+slider.oninput = () => {
+    days = +slider.value;
+    input.value = days;
+    render();
+};
+input.onchange = () => {
+    days = Math.max(1, Math.min(500, +input.value || 1));
+    slider.value = days;
+    render();
 };
 
-function today(){return new Date().toISOString().split("T")[0];}
-function datePlus(n){let d=new Date();d.setDate(d.getDate()+n);return d;}
-function key(d){return d.toISOString().split("T")[0];}
+document.getElementById("overrideBtn").onclick = () => {
+    override = !override;
+    document.getElementById("overrideBtn").textContent =
+        override ? "Override: ON" : "Override: OFF";
+};
 
-function setDay(color){
-    if(!selected)return;
-    const k=key(selected);
-    if(!override && k!==today())return;
-    data[k]=color;
-    localStorage.setItem(storeKey,JSON.stringify(data));
+/* ---------------- DAY SET ---------------- */
+function setDay(color) {
+    if (!selected) return;
+    const k = key(selected);
+    if (!override && k !== today()) return;
+
+    data[k] = color;
+    localStorage.setItem(storeKey, JSON.stringify(data));
     render();
 }
 
-/* ---------- Streaks ---------- */
-function calcStreaks(){
-    let max=0,cur=0,last=null;
-    const keys=Object.keys(data).sort();
-    for(const k of keys){
-        if(data[k]==="green"){
-            if(last){
-                const diff=(new Date(k)-new Date(last))/86400000;
-                cur=diff===1?cur+1:1;
-            } else cur=1;
-            max=Math.max(max,cur);
-            last=k;
+/* ---------------- STREAKS ---------------- */
+function calcStreaks() {
+    let max = 0, cur = 0;
+    let prev = null;
+
+    Object.keys(data).sort().forEach(k => {
+        if (data[k] === "green") {
+            if (prev && (new Date(k) - new Date(prev)) === 86400000) cur++;
+            else cur = 1;
+            max = Math.max(max, cur);
+            prev = k;
         }
+    });
+
+    let todayKey = today();
+    let run = 0;
+    for (let i = 0; ; i--) {
+        const d = datePlus(i);
+        const k = key(d);
+        if (data[k] === "green") run++;
+        else break;
     }
-    return {cur: (data[today()]==="green"?cur:0), max};
+
+    return { max, cur: run };
 }
 
-/* ---------- Render ---------- */
-function render(){
-    const grid=document.getElementById("grid");
-    grid.innerHTML="";
+/* ---------------- RENDER ---------------- */
+function render() {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
 
-    const size=Math.max(38,96-days*0.12);
-    document.documentElement.style.setProperty("--size",size+"px");
+    const size = Math.max(36, 96 - days * 0.12);
+    document.documentElement.style.setProperty("--hex-size", size + "px");
 
-    const hexW=size;
-    const hexH=size*0.866;
-    const colSpacing=hexW*0.75;
-    const rowSpacing=hexH;
+    const w = size;
+    const h = size * 0.866;
+    const colGap = w * 0.75;
 
-    const cols=Math.round(Math.sqrt(days));
-    const rows=Math.ceil(days/cols);
+    const rows = Math.max(6, Math.floor((window.innerHeight - 260) / h));
 
-    for(let i=0;i<days;i++){
-        const col=Math.floor(i/rows);
-        const row=i%rows;
+    for (let i = 0; i < days; i++) {
+        const col = Math.floor(i / rows);
+        const row = i % rows;
 
-        const x=col*colSpacing;
-        const y=row*rowSpacing + (col%2?rowSpacing/2:0);
+        const x = col * colGap;
+        const y = row * h + (col % 2 ? h / 2 : 0);
 
-        const d=datePlus(i);
-        const k=key(d);
+        const d = datePlus(i);
+        const k = key(d);
 
-        const hex=document.createElement("div");
-        hex.className="hex";
-        if(data[k])hex.classList.add(data[k]);
-        if(k===today())hex.classList.add("today");
-        if(!override && k!==today())hex.classList.add("locked");
+        const hex = document.createElement("div");
+        hex.className = "hex";
+        if (data[k]) hex.classList.add(data[k]);
+        if (k === today()) hex.classList.add("today");
+        if (!override && k !== today()) hex.classList.add("locked");
 
-        hex.textContent=d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
-        hex.style.left=x+"px";
-        hex.style.top=y+"px";
+        hex.textContent = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        hex.style.left = x + "px";
+        hex.style.top = y + "px";
 
-        hex.onclick=()=>{
-            selected=d;
-            document.querySelectorAll(".hex").forEach(h=>h.style.outline="");
-            hex.style.outline="2px solid white";
-        };
-
+        hex.onclick = () => selected = d;
         grid.appendChild(hex);
     }
 
-    grid.style.width=(cols*colSpacing+hexW)+"px";
-    grid.style.height=(rows*rowSpacing+rowSpacing)+"px";
+    grid.style.width = (Math.ceil(days / rows) * colGap + w) + "px";
+    grid.style.height = (rows * h + h) + "px";
 
-    const s=calcStreaks();
-    cur.textContent=s.cur;
-    max.textContent=s.max;
+    const s = calcStreaks();
+    document.getElementById("maxStreak").textContent = s.max;
+    document.getElementById("curStreak").textContent = s.cur;
 }
 
 render();
-window.onresize=render;
+window.onresize = render;
 
-/* ---------- Mouse parallax ---------- */
-document.onmousemove=e=>{
-    const x=(e.clientX/window.innerWidth-0.5)*10;
-    const y=(e.clientY/window.innerHeight-0.5)*10;
-    app.style.transform=`translate(${x}px,${y}px)`;
-};
+/* ---------------- PARTICLES ---------------- */
+const canvas = document.getElementById("particles");
+const ctx = canvas.getContext("2d");
+let parts = [];
 
-/* ---------- Particles ---------- */
-const canvas=document.getElementById("bg"),ctx=canvas.getContext("2d");
-let w,h,particles=[];
-function resize(){w=canvas.width=innerWidth;h=canvas.height=innerHeight;}
-resize();onresize=resize;
-
-for(let i=0;i<120;i++)
-    particles.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.4,r:Math.random()*2+1});
-
-function loop(){
-    ctx.clearRect(0,0,w,h);
-    for(const p of particles){
-        p.x+=p.vx;p.y+=p.vy;
-        if(p.x<0||p.x>w)p.vx*=-1;
-        if(p.y<0||p.y>h)p.vy*=-1;
-        ctx.fillStyle="rgba(255,255,255,0.1)";
-        ctx.beginPath();
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-        ctx.fill();
-    }
-    requestAnimationFrame(loop);
+function resize() {
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
 }
-loop();
+resize();
+window.onresize = resize;
+
+for (let i = 0; i < 90; i++) {
+    parts.push({
+        x: Math.random() * innerWidth,
+        y: Math.random() * innerHeight,
+        r: Math.random() * 2 + 0.5,
+        v: Math.random() * 0.3 + 0.1
+    });
+}
+
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    parts.forEach(p => {
+        p.y -= p.v;
+        if (p.y < 0) p.y = canvas.height;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    requestAnimationFrame(animate);
+}
+animate();
+
+/* ---------------- MOUSE REACT ---------------- */
+document.addEventListener("mousemove", e => {
+    const x = (e.clientX / innerWidth - 0.5) * 12;
+    const y = (e.clientY / innerHeight - 0.5) * 12;
+    document.getElementById("grid").style.transform =
+        `translate(${x}px, ${y}px)`;
+});
 </script>
+
 </body>
 </html>
