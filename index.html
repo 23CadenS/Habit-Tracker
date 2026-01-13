@@ -5,9 +5,7 @@
 <title>Hex Habit Tracker</title>
 
 <style>
-:root {
-    --hex-size: 86px;
-}
+:root { --hex-size: 86px; }
 
 body {
     margin: 0;
@@ -60,35 +58,64 @@ canvas {
         0% 50%
     );
     border-radius: 10%;
-    outline: 1.3px solid rgba(235,235,235,0.4);
-    outline-offset: -1px;
+
+    /* 🔥 GLOWING BORDER */
+    box-shadow:
+        0 0 0 1.3px rgba(255,255,255,0.65),
+        0 0 8px rgba(255,255,255,0.35),
+        inset 0 0 6px rgba(255,255,255,0.15);
+
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
-    color: #aaa;
+    color: #ccc;
     cursor: pointer;
-    transition: transform 0.25s, box-shadow 0.25s, background 0.25s;
+
+    transition:
+        transform 0.25s,
+        box-shadow 0.25s,
+        background 0.25s;
 }
 
 .hex:hover {
-    transform: scale(1.05);
+    transform: scale(1.06);
+    box-shadow:
+        0 0 0 1.5px rgba(255,255,255,0.9),
+        0 0 14px rgba(255,255,255,0.6),
+        inset 0 0 8px rgba(255,255,255,0.25);
 }
 
 /* COLORS */
-.green { background: #1f7f50; color: #eafff4; }
-.red { background: #7f1f1f; color: #ffe5e5; }
-.yellow { background: #7f7320; color: #fff6c8; }
+.green {
+    background: #1f7f50;
+    box-shadow:
+        0 0 0 1.3px rgba(220,255,235,0.8),
+        0 0 14px rgba(80,255,190,0.5);
+}
+.red {
+    background: #7f1f1f;
+    box-shadow:
+        0 0 0 1.3px rgba(255,220,220,0.8),
+        0 0 14px rgba(255,80,80,0.45);
+}
+.yellow {
+    background: #7f7320;
+    box-shadow:
+        0 0 0 1.3px rgba(255,245,200,0.85),
+        0 0 14px rgba(255,230,120,0.55);
+}
 
 /* TODAY */
 .today {
     box-shadow:
-        0 0 14px rgba(255,255,255,0.9),
-        0 0 34px rgba(255,255,255,0.6);
+        0 0 0 1.6px white,
+        0 0 20px rgba(255,255,255,0.9),
+        0 0 40px rgba(255,255,255,0.6);
 }
 
 /* LOCKED */
-.locked { opacity: 0.6; }
+.locked { opacity: 0.55; }
 
 /* CONTROLS */
 #controls {
@@ -116,6 +143,8 @@ button, input {
 
 button:hover { background: #333; }
 input[type=number] { width: 80px; }
+
+#grayBtn { display: none; }
 </style>
 </head>
 
@@ -135,6 +164,8 @@ input[type=number] { width: 80px; }
     <button onclick="setDay('green')">Green</button>
     <button onclick="setDay('yellow')">Yellow</button>
     <button onclick="setDay('red')">Red</button>
+    <button id="grayBtn" onclick="setDay(null)">Gray</button>
+
     <button id="overrideBtn">Override: OFF</button>
 
     <label>Days
@@ -144,196 +175,121 @@ input[type=number] { width: 80px; }
 </div>
 
 <script>
-/* ---------------- DATA ---------------- */
+/* DATA */
 const storeKey = "hexData";
 const autoKey = "hexAutoDays";
 let data = JSON.parse(localStorage.getItem(storeKey) || "{}");
-
 let override = false;
 let selected = null;
 
-/* ---------------- DATE HELPERS ---------------- */
-function today() {
-    return new Date().toISOString().split("T")[0];
-}
-function datePlus(n) {
-    const d = new Date();
-    d.setDate(d.getDate() + n);
-    return d;
-}
-function key(d) {
-    return d.toISOString().split("T")[0];
-}
+/* DATE HELPERS */
+const today = () => new Date().toISOString().split("T")[0];
+const datePlus = n => { const d = new Date(); d.setDate(d.getDate()+n); return d; };
+const key = d => d.toISOString().split("T")[0];
 
-/* ---------------- AUTO DAY GROWTH ---------------- */
-function getAutoDays() {
-    const t = today();
-    let saved = JSON.parse(localStorage.getItem(autoKey) || "{}");
-
-    if (!saved.date) saved = { date: t, days: 60 };
-
-    const diff = Math.floor((new Date(t) - new Date(saved.date)) / 86400000);
-    if (diff > 0) {
-        saved.days += diff;
-        saved.date = t;
-    }
-
-    localStorage.setItem(autoKey, JSON.stringify(saved));
-    return saved.days;
+/* AUTO DAYS */
+function getAutoDays(){
+    const t=today();
+    let s=JSON.parse(localStorage.getItem(autoKey)||"{}");
+    if(!s.date) s={date:t,days:60};
+    const diff=(new Date(t)-new Date(s.date))/86400000;
+    if(diff>0){s.days+=diff;s.date=t;}
+    localStorage.setItem(autoKey,JSON.stringify(s));
+    return s.days;
 }
 
-let days = getAutoDays();
+let days=getAutoDays();
 
-/* ---------------- CONTROLS ---------------- */
-const slider = document.getElementById("daysSlider");
-const input = document.getElementById("daysInput");
+/* CONTROLS */
+const slider=daysSlider, input=daysInput;
+slider.value=input.value=days;
 
-slider.value = input.value = days;
+slider.oninput=()=>{days=+slider.value;input.value=days;render();};
+input.onchange=()=>{days=Math.min(500,Math.max(1,+input.value||1));slider.value=days;render();};
 
-slider.oninput = () => {
-    days = +slider.value;
-    input.value = days;
-    render();
-};
-input.onchange = () => {
-    days = Math.max(1, Math.min(500, +input.value || 1));
-    slider.value = days;
-    render();
+overrideBtn.onclick=()=>{
+    override=!override;
+    overrideBtn.textContent=override?"Override: ON":"Override: OFF";
+    grayBtn.style.display=override?"inline-block":"none";
 };
 
-document.getElementById("overrideBtn").onclick = () => {
-    override = !override;
-    document.getElementById("overrideBtn").textContent =
-        override ? "Override: ON" : "Override: OFF";
-};
-
-/* ---------------- DAY SET ---------------- */
-function setDay(color) {
-    if (!selected) return;
-    const k = key(selected);
-    if (!override && k !== today()) return;
-
-    data[k] = color;
-    localStorage.setItem(storeKey, JSON.stringify(data));
+/* SET DAY */
+function setDay(color){
+    if(!selected) return;
+    const k=key(selected);
+    if(!override && k!==today()) return;
+    if(color===null) delete data[k];
+    else data[k]=color;
+    localStorage.setItem(storeKey,JSON.stringify(data));
     render();
 }
 
-/* ---------------- STREAKS ---------------- */
-function calcStreaks() {
-    let max = 0, cur = 0;
-    let prev = null;
-
-    Object.keys(data).sort().forEach(k => {
-        if (data[k] === "green") {
-            if (prev && (new Date(k) - new Date(prev)) === 86400000) cur++;
-            else cur = 1;
-            max = Math.max(max, cur);
-            prev = k;
+/* STREAKS */
+function calcStreaks(){
+    let max=0,cur=0,prev=null;
+    Object.keys(data).sort().forEach(k=>{
+        if(data[k]==="green"){
+            cur=prev&&(new Date(k)-new Date(prev)===86400000)?cur+1:1;
+            max=Math.max(max,cur); prev=k;
         }
     });
-
-    let todayKey = today();
-    let run = 0;
-    for (let i = 0; ; i--) {
-        const d = datePlus(i);
-        const k = key(d);
-        if (data[k] === "green") run++;
-        else break;
+    let run=0;
+    for(let i=0;;i--){
+        const k=key(datePlus(i));
+        if(data[k]==="green") run++; else break;
     }
-
-    return { max, cur: run };
+    return{max,cur:run};
 }
 
-/* ---------------- RENDER ---------------- */
-function render() {
-    const grid = document.getElementById("grid");
-    grid.innerHTML = "";
+/* RENDER */
+function render(){
+    grid.innerHTML="";
+    const size=Math.max(36,96-days*0.12);
+    document.documentElement.style.setProperty("--hex-size",size+"px");
+    const w=size,h=size*0.866,gap=w*0.75;
+    const rows=Math.max(6,Math.floor((innerHeight-260)/h));
 
-    const size = Math.max(36, 96 - days * 0.12);
-    document.documentElement.style.setProperty("--hex-size", size + "px");
-
-    const w = size;
-    const h = size * 0.866;
-    const colGap = w * 0.75;
-
-    const rows = Math.max(6, Math.floor((window.innerHeight - 260) / h));
-
-    for (let i = 0; i < days; i++) {
-        const col = Math.floor(i / rows);
-        const row = i % rows;
-
-        const x = col * colGap;
-        const y = row * h + (col % 2 ? h / 2 : 0);
-
-        const d = datePlus(i);
-        const k = key(d);
-
-        const hex = document.createElement("div");
-        hex.className = "hex";
-        if (data[k]) hex.classList.add(data[k]);
-        if (k === today()) hex.classList.add("today");
-        if (!override && k !== today()) hex.classList.add("locked");
-
-        hex.textContent = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-        hex.style.left = x + "px";
-        hex.style.top = y + "px";
-
-        hex.onclick = () => selected = d;
+    for(let i=0;i<days;i++){
+        const col=Math.floor(i/rows), row=i%rows;
+        const d=datePlus(i), k=key(d);
+        const hex=document.createElement("div");
+        hex.className="hex";
+        if(data[k]) hex.classList.add(data[k]);
+        if(k===today()) hex.classList.add("today");
+        if(!override && k!==today()) hex.classList.add("locked");
+        hex.textContent=d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+        hex.style.left=(col*gap)+"px";
+        hex.style.top=(row*h+(col%2?h/2:0))+"px";
+        hex.onclick=()=>selected=d;
         grid.appendChild(hex);
     }
+    grid.style.width=(Math.ceil(days/rows)*gap+w)+"px";
+    grid.style.height=(rows*h+h)+"px";
 
-    grid.style.width = (Math.ceil(days / rows) * colGap + w) + "px";
-    grid.style.height = (rows * h + h) + "px";
-
-    const s = calcStreaks();
-    document.getElementById("maxStreak").textContent = s.max;
-    document.getElementById("curStreak").textContent = s.cur;
+    const s=calcStreaks();
+    maxStreak.textContent=s.max;
+    curStreak.textContent=s.cur;
 }
 
 render();
-window.onresize = render;
+onresize=render;
 
-/* ---------------- PARTICLES ---------------- */
-const canvas = document.getElementById("particles");
-const ctx = canvas.getContext("2d");
-let parts = [];
+/* PARTICLES */
+const ctx=particles.getContext("2d");
+function resize(){particles.width=innerWidth;particles.height=innerHeight;}
+resize();onresize=resize;
+const parts=[...Array(90)].map(()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*2+.5,v:Math.random()*.3+.1}));
+(function anim(){
+    ctx.clearRect(0,0,particles.width,particles.height);
+    ctx.fillStyle="rgba(255,255,255,.15)";
+    parts.forEach(p=>{p.y-=p.v;if(p.y<0)p.y=particles.height;
+        ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();});
+    requestAnimationFrame(anim);
+})();
 
-function resize() {
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
-}
-resize();
-window.onresize = resize;
-
-for (let i = 0; i < 90; i++) {
-    parts.push({
-        x: Math.random() * innerWidth,
-        y: Math.random() * innerHeight,
-        r: Math.random() * 2 + 0.5,
-        v: Math.random() * 0.3 + 0.1
-    });
-}
-
-function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
-    parts.forEach(p => {
-        p.y -= p.v;
-        if (p.y < 0) p.y = canvas.height;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fill();
-    });
-    requestAnimationFrame(animate);
-}
-animate();
-
-/* ---------------- MOUSE REACT ---------------- */
-document.addEventListener("mousemove", e => {
-    const x = (e.clientX / innerWidth - 0.5) * 12;
-    const y = (e.clientY / innerHeight - 0.5) * 12;
-    document.getElementById("grid").style.transform =
-        `translate(${x}px, ${y}px)`;
+/* MOUSE REACT */
+addEventListener("mousemove",e=>{
+    grid.style.transform=`translate(${(e.clientX/innerWidth-.5)*14}px,${(e.clientY/innerHeight-.5)*14}px)`;
 });
 </script>
 
