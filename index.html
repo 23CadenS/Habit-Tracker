@@ -7,40 +7,41 @@
 <style>
 body {
     margin: 0;
-    background: #0d0d0d;
-    font-family: sans-serif;
-    color: #ccc;
-    display: flex;
-    justify-content: center;
+    background: #0b0b0b;
+    font-family: Arial, sans-serif;
+    color: #aaa;
+    overflow-x: hidden;
 }
 
-#container {
-    width: 100%;
-    max-width: 900px;
-    padding: 40px;
-}
-
-h1 {
-    text-align: center;
-    color: #999;
-    letter-spacing: 2px;
+#app {
+    max-width: 1100px;
+    margin: auto;
+    padding: 20px;
 }
 
 #grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
     justify-content: center;
-    margin-top: 40px;
+    gap: 14px;
+    margin-top: 20px;
+    transition: 0.4s;
 }
 
 .hex {
-    width: 80px;
-    height: 46px;
-    background: #333;
+    width: 90px;
+    height: 52px;
+    background: #2c2c2c;
     position: relative;
+    border-radius: 10px;
     cursor: pointer;
-    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 12px;
+    text-align: center;
+    transition: 0.4s;
 }
 
 .hex:before,
@@ -48,89 +49,176 @@ h1 {
     content: "";
     position: absolute;
     width: 0;
-    border-left: 40px solid transparent;
-    border-right: 40px solid transparent;
+    border-left: 45px solid transparent;
+    border-right: 45px solid transparent;
 }
 
 .hex:before {
     bottom: 100%;
-    border-bottom: 23px solid #333;
+    border-bottom: 26px solid #2c2c2c;
 }
 
 .hex:after {
     top: 100%;
-    border-top: 23px solid #333;
+    border-top: 26px solid #2c2c2c;
 }
 
-.hex.green,
-.hex.green:before,
-.hex.green:after {
-    background: #1e7f43;
-    border-bottom-color: #1e7f43;
-    border-top-color: #1e7f43;
+.hex.green, .hex.green:before, .hex.green:after {
+    background: #1f7a4d;
+    border-bottom-color: #1f7a4d;
+    border-top-color: #1f7a4d;
+    color: #d9ffe9;
 }
 
-.hex.red,
-.hex.red:before,
-.hex.red:after {
-    background: #7f1e1e;
-    border-bottom-color: #7f1e1e;
-    border-top-color: #7f1e1e;
+.hex.red, .hex.red:before, .hex.red:after {
+    background: #7a1f1f;
+    border-bottom-color: #7a1f1f;
+    border-top-color: #7a1f1f;
+    color: #ffd9d9;
 }
 
 .hex.locked {
+    opacity: 0.7;
     cursor: default;
-    opacity: 0.8;
+}
+
+#controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #111;
+    padding: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.7);
+}
+
+button {
+    background: #222;
+    color: #ccc;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #333;
+}
+
+input[type=range] {
+    width: 200px;
 }
 </style>
 </head>
 
 <body>
-<div id="container">
-<h1>Hex Habit Tracker</h1>
-<div id="grid"></div>
+<div id="app">
+    <h2>Hex Habit Tracker</h2>
+    <div id="grid"></div>
+</div>
+
+<div id="controls">
+    <button id="yesBtn">Green</button>
+    <button id="noBtn">Red</button>
+    <button id="overrideBtn">Override: Off</button>
+
+    <label>Days visible
+        <input id="daysSlider" type="range" min="7" max="90" value="30">
+    </label>
+
+    <label>Test offset
+        <input id="testOffset" type="range" min="-30" max="30" value="0">
+    </label>
 </div>
 
 <script>
-const startDateKey = "hexStartDate";
-const dataKey = "hexData";
-
-let startDate = localStorage.getItem(startDateKey);
-if (!startDate) {
-    startDate = new Date().toISOString().split("T")[0];
-    localStorage.setItem(startDateKey, startDate);
-}
-
-const today = new Date();
-const start = new Date(startDate);
-const daysPassed = Math.floor((today - start) / (1000 * 60 * 60 * 24)) + 1;
-
+const dataKey = "hexTracker";
 let data = JSON.parse(localStorage.getItem(dataKey) || "{}");
+
+let visibleDays = 30;
+let testOffset = 0;
+let override = false;
+let selectedDay = null;
 
 const grid = document.getElementById("grid");
 
-for (let i = 1; i <= daysPassed; i++) {
-    const hex = document.createElement("div");
-    hex.classList.add("hex");
+document.getElementById("daysSlider").oninput = e => {
+    visibleDays = +e.target.value;
+    render();
+};
 
-    if (data[i]) {
-        hex.classList.add(data[i]);
-        if (i < daysPassed) hex.classList.add("locked");
-    }
+document.getElementById("testOffset").oninput = e => {
+    testOffset = +e.target.value;
+    render();
+};
 
-    if (i === daysPassed && !data[i]) {
-        hex.onclick = () => {
-            const choice = confirm("OK = Green (success)\nCancel = Red (fail)") ? "green" : "red";
-            data[i] = choice;
-            localStorage.setItem(dataKey, JSON.stringify(data));
-            location.reload();
-        };
-    } else {
-        hex.classList.add("locked");
-    }
+document.getElementById("overrideBtn").onclick = () => {
+    override = !override;
+    document.getElementById("overrideBtn").innerText = override ? "Override: ON" : "Override: Off";
+};
 
-    grid.appendChild(hex);
+document.getElementById("yesBtn").onclick = () => setDay("green");
+document.getElementById("noBtn").onclick = () => setDay("red");
+
+function today() {
+    const d = new Date();
+    d.setDate(d.getDate() + testOffset);
+    return d;
 }
+
+function format(d) {
+    return d.toISOString().split("T")[0];
+}
+
+function setDay(color) {
+    if (!selectedDay) return;
+    const key = format(selectedDay);
+
+    if (!override && key !== format(today())) return;
+
+    data[key] = color;
+    localStorage.setItem(dataKey, JSON.stringify(data));
+    render();
+}
+
+function render() {
+    grid.innerHTML = "";
+    selectedDay = null;
+
+    const base = today();
+
+    for (let i = visibleDays - 1; i >= 0; i--) {
+        const d = new Date(base);
+        d.setDate(base.getDate() - i);
+        const key = format(d);
+
+        const hex = document.createElement("div");
+        hex.className = "hex";
+
+        if (data[key]) hex.classList.add(data[key]);
+
+        const dateText = d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+        hex.innerText = dateText;
+
+        const isToday = key === format(today());
+
+        if (!override && !isToday) hex.classList.add("locked");
+
+        hex.onclick = () => {
+            selectedDay = d;
+            document.querySelectorAll(".hex").forEach(h=>h.style.outline="none");
+            hex.style.outline = "2px solid #888";
+        };
+
+        grid.appendChild(hex);
+    }
+}
+
+render();
 </script>
 </body>
 </html>
