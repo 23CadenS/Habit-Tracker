@@ -15,7 +15,6 @@ body {
     overflow-x: hidden;
 }
 
-/* PARTICLES */
 canvas {
     position: fixed;
     inset: 0;
@@ -36,21 +35,17 @@ canvas {
     font-size: 18px;
 }
 
-/* GRID */
 #grid {
     position: relative;
     margin: auto;
-    transition: transform 0.18s ease-out;
+    transition: transform 0.15s ease-out;
 }
 
-/* HEXAGON */
 .hex {
     position: absolute;
     width: var(--hex-size);
     height: calc(var(--hex-size) * 0.866);
     background: #2b2b2b;
-
-    /* Rounded flat-top hex */
     clip-path: polygon(
         26% 3%,
         74% 3%,
@@ -59,10 +54,8 @@ canvas {
         26% 97%,
         3% 50%
     );
+    border-radius: 20%;
 
-    border-radius: 18%;
-
-    /* STRONG GLOW + SEPARATION */
     box-shadow:
         0 0 0 1.4px rgba(255,255,255,0.75),
         0 0 12px rgba(255,255,255,0.55),
@@ -77,18 +70,19 @@ canvas {
     cursor: pointer;
 
     transition:
-        transform 0.28s ease,
-        box-shadow 0.28s ease,
-        background 0.28s ease;
+        transform 0.15s cubic-bezier(.2,1.4,.4,1),
+        box-shadow 0.15s cubic-bezier(.2,1.4,.4,1),
+        background 0.15s;
 }
 
 .hex:hover {
-    transform: scale(1.08);
+    transform: scale(1.14) translateY(-6px);
     box-shadow:
-        0 0 0 1.6px rgba(255,255,255,1),
-        0 0 18px rgba(255,255,255,0.9),
-        0 0 42px rgba(255,255,255,0.45),
-        inset 0 0 14px rgba(255,255,255,0.25);
+        0 0 0 1.8px rgba(255,255,255,1),
+        0 0 26px rgba(255,255,255,1),
+        0 0 60px rgba(255,255,255,0.6),
+        inset 0 0 18px rgba(255,255,255,0.35);
+    z-index: 5;
 }
 
 /* COLORS */
@@ -96,37 +90,36 @@ canvas {
     background: #1f7f50;
     box-shadow:
         0 0 0 1.6px rgba(220,255,235,1),
-        0 0 20px rgba(90,255,200,0.8),
-        0 0 44px rgba(60,200,150,0.45);
+        0 0 24px rgba(90,255,200,0.85),
+        0 0 60px rgba(60,200,150,0.55);
 }
 .red {
     background: #7f1f1f;
     box-shadow:
         0 0 0 1.6px rgba(255,220,220,1),
-        0 0 20px rgba(255,90,90,0.8),
-        0 0 44px rgba(200,60,60,0.45);
+        0 0 24px rgba(255,90,90,0.85),
+        0 0 60px rgba(200,60,60,0.55);
 }
 .yellow {
     background: #7f7320;
     box-shadow:
         0 0 0 1.6px rgba(255,245,200,1),
-        0 0 20px rgba(255,230,130,0.85),
-        0 0 44px rgba(200,180,70,0.45);
+        0 0 24px rgba(255,230,130,0.9),
+        0 0 60px rgba(200,180,70,0.55);
 }
 
-/* TODAY — VERY STRONG */
+/* TODAY */
 .today {
     box-shadow:
-        0 0 0 2px white,
-        0 0 28px rgba(255,255,255,1),
-        0 0 60px rgba(255,255,255,0.85),
-        0 0 100px rgba(255,255,255,0.45);
+        0 0 0 2.2px white,
+        0 0 34px rgba(255,255,255,1),
+        0 0 80px rgba(255,255,255,0.9),
+        0 0 140px rgba(255,255,255,0.5);
 }
 
 /* LOCKED */
 .locked { opacity: 0.55; }
 
-/* CONTROLS */
 #controls {
     position: fixed;
     bottom: 0;
@@ -152,7 +145,6 @@ button, input {
 
 button:hover { background: #333; }
 input[type=number] { width: 80px; }
-
 #grayBtn { display: none; }
 </style>
 </head>
@@ -174,27 +166,21 @@ input[type=number] { width: 80px; }
     <button onclick="setDay('yellow')">Yellow</button>
     <button onclick="setDay('red')">Red</button>
     <button id="grayBtn" onclick="setDay(null)">Gray</button>
-
     <button id="overrideBtn">Override: OFF</button>
-
-    <label>Days
-        <input id="daysSlider" type="range" min="14" max="500">
-    </label>
+    <label>Days <input id="daysSlider" type="range" min="14" max="500"></label>
     <input id="daysInput" type="number" min="1" max="500">
 </div>
 
 <script>
-/* DATA */
 const storeKey="hexData", autoKey="hexAutoDays";
 let data=JSON.parse(localStorage.getItem(storeKey)||"{}");
-let override=false, selected=null;
+let override=false;
+let selected=null;
 
-/* DATE HELPERS */
 const today=()=>new Date().toISOString().split("T")[0];
 const datePlus=n=>{const d=new Date();d.setDate(d.getDate()+n);return d;}
 const key=d=>d.toISOString().split("T")[0];
 
-/* AUTO DAYS */
 function getAutoDays(){
     const t=today();
     let s=JSON.parse(localStorage.getItem(autoKey)||"{}");
@@ -206,8 +192,8 @@ function getAutoDays(){
 }
 let days=getAutoDays();
 
-/* CONTROLS */
 daysSlider.value=daysInput.value=days;
+
 daysSlider.oninput=()=>{days=+daysSlider.value;daysInput.value=days;render();}
 daysInput.onchange=()=>{days=Math.min(500,Math.max(1,+daysInput.value||1));daysSlider.value=days;render();}
 
@@ -217,7 +203,6 @@ overrideBtn.onclick=()=>{
     grayBtn.style.display=override?"inline-block":"none";
 };
 
-/* SET DAY */
 function setDay(color){
     if(!selected) return;
     const k=key(selected);
@@ -228,7 +213,6 @@ function setDay(color){
     render();
 }
 
-/* STREAKS */
 function calcStreaks(){
     let max=0,cur=0,prev=null;
     Object.keys(data).sort().forEach(k=>{
@@ -245,32 +229,28 @@ function calcStreaks(){
     return{max,cur:run};
 }
 
-/* RENDER */
 function render(){
     grid.innerHTML="";
     const size=Math.max(36,96-days*0.12);
     document.documentElement.style.setProperty("--hex-size",size+"px");
-
-    const w=size, h=size*0.866;
-    const gap=w*0.78; /* tiny spacing */
-
+    const w=size,h=size*0.866,gap=w*0.78;
     const rows=Math.max(6,Math.floor((innerHeight-260)/h));
 
     for(let i=0;i<days;i++){
-        const col=Math.floor(i/rows), row=i%rows;
-        const d=datePlus(i), k=key(d);
-
+        const col=Math.floor(i/rows),row=i%rows;
+        const d=datePlus(i),k=key(d);
         const hex=document.createElement("div");
         hex.className="hex";
         if(data[k]) hex.classList.add(data[k]);
-        if(k===today()) hex.classList.add("today");
+        if(k===today()) {
+            hex.classList.add("today");
+            selected=d; // 🔥 AUTO-SELECT TODAY
+        }
         if(!override && k!==today()) hex.classList.add("locked");
-
         hex.textContent=d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
         hex.style.left=(col*gap)+"px";
         hex.style.top=(row*h+(col%2?h/2:0))+"px";
         hex.onclick=()=>selected=d;
-
         grid.appendChild(hex);
     }
 
