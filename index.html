@@ -9,14 +9,13 @@
 :root {
   --hex-size: 86px;
   --hex-tint: #3b2b5f;
-  --font-size: 10px;
+  --hex-font-size: 10px;
 }
 
 body {
   margin:0;
   background:#050505;
-  font-family:'Press Start 2P', cursive;
-  font-size: var(--font-size);
+  font-family:Arial,sans-serif; /* default font for everything except hex */
   color:#ddd;
   overflow-x:hidden;
 }
@@ -53,7 +52,10 @@ canvas {
   clip-path:polygon(26% 3%,74% 3%,97% 50%,74% 97%,26% 97%,3% 50%);
   border-radius:30%;
   display:flex; align-items:center; justify-content:center;
-  font-size:var(--font-size); color:#e0e0e0; cursor:pointer;
+  font-family:var(--hex-font-family,'Press Start 2P', cursive);
+  font-size:var(--hex-font-size);
+  color:#e0e0e0;
+  cursor:pointer;
   box-shadow:0 0 0 1.4px rgba(255,255,255,0.75),0 0 12px rgba(255,255,255,0.55),0 0 26px rgba(255,255,255,0.25),inset 0 0 10px rgba(255,255,255,0.18);
   transition: transform 0.15s cubic-bezier(.2,1.4,.4,1), box-shadow 0.15s cubic-bezier(.2,1.4,.4,1), background 0.15s;
 }
@@ -77,7 +79,7 @@ canvas {
   box-shadow:0 -10px 30px rgba(0,0,0,0.9); z-index:3;
 }
 
-button,input,select { background:#222; border:none; color:#ddd; padding:10px 14px; border-radius:6px; font-size:14px; font-family: 'Press Start 2P', cursive; }
+button,input,select { background:#222; border:none; color:#ddd; padding:10px 14px; border-radius:6px; font-size:14px; font-family:inherit; }
 button:hover, select:hover, input:hover { background:#333; }
 input[type=number]{ width:60px; border-radius:6px; }
 
@@ -96,12 +98,14 @@ input[type=range] { -webkit-appearance:none; width:150px; height:6px; background
 input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; height:18px; width:18px; border-radius:50%; background:#fff; cursor:pointer; box-shadow:0 0 2px #fff; }
 input[type=range]::-moz-range-thumb { height:18px; width:18px; border-radius:50%; background:#fff; cursor:pointer; }
 
-/* Saving indicator */
-#syncStatus { position:fixed; bottom:12px; right:12px; font-size:12px; color:#fff; font-family:sans-serif; z-index:9999; }
+/* Saving indicator top-left */
+#syncStatus { position:fixed; top:12px; left:12px; font-size:12px; color:#fff; font-family:sans-serif; z-index:9999; }
 </style>
 </head>
 <body>
 <canvas id="particles"></canvas>
+
+<div id="syncStatus">Not connected</div>
 
 <div id="app">
   <div id="stats">
@@ -120,8 +124,6 @@ input[type=range]::-moz-range-thumb { height:18px; width:18px; border-radius:50%
   <input id="daysInput" type="number" min="1" max="500">
 </div>
 
-<div id="syncStatus">Not connected</div>
-
 <div id="settingsToggle">⚙ Settings</div>
 <div id="settingsPanel">
   <label>Animations <input type="checkbox" id="animSwitch"></label>
@@ -133,90 +135,102 @@ input[type=range]::-moz-range-thumb { height:18px; width:18px; border-radius:50%
       <option value="Courier New, monospace">Courier New</option>
     </select>
   </label>
-  <label>Font Size: <input type="number" id="fontSizeInput" min="8" max="20" value="10"></label>
-  <label>GitHub Token:</label>
-  <input id="ghToken" type="password" placeholder="Personal Access Token">
+  <label>Hex Font Size: <input type="number" id="fontSizeInput" min="8" max="20" value="10"></label>
+  <label>GitHub Token / Profile:</label>
+  <input id="ghToken" type="password" placeholder="Token or 0508 profile">
   <button onclick="saveToken()">Connect</button>
 </div>
 
 <script>
+// ---------------- SETTINGS ------------------
 const settingsPanel=document.getElementById("settingsPanel");
 document.getElementById("settingsToggle").onclick=()=>settingsPanel.classList.toggle("open");
 
-let storeKey="hexData", autoKey="hexAutoDays";
-let data=JSON.parse(localStorage.getItem(storeKey)||"{}");
+// token-profile mode
+let activeProfile=localStorage.getItem("activeProfile") || "default";
+
+// Local storage keys
+function getKey(name){ return name+"_"+activeProfile; }
+
+let data=JSON.parse(localStorage.getItem(getKey("hexData"))||"{}");
 let override=false, selected=null;
 
-let animEnabled=localStorage.getItem("animEnabled")!=="false"; 
+let animEnabled=localStorage.getItem(getKey("animEnabled"))!=="false"; 
 document.getElementById("animSwitch").checked=animEnabled;
-let hexTint=localStorage.getItem("hexTint")||"#3b2b5f";
-document.getElementById("hexTint").value=hexTint;
-let fontSize=localStorage.getItem("fontSize")||10;
-document.getElementById("fontSizeInput").value=fontSize;
-document.body.style.setProperty("--hex-tint",hexTint);
-document.body.style.setProperty("--font-size",fontSize+"px");
-let font=localStorage.getItem("font")||"'Press Start 2P', cursive";
-document.body.style.fontFamily=font;
-document.getElementById("fontSelect").value=font;
 
+let hexTint=localStorage.getItem(getKey("hexTint"))||"#3b2b5f";
+document.getElementById("hexTint").value=hexTint;
+document.body.style.setProperty("--hex-tint",hexTint);
+
+let hexFontSize=localStorage.getItem(getKey("fontSize"))||10;
+document.getElementById("fontSizeInput").value=hexFontSize;
+document.body.style.setProperty("--hex-font-size",hexFontSize+"px");
+
+let font=localStorage.getItem(getKey("font"))||"'Press Start 2P', cursive";
+document.getElementById("fontSelect").value=font;
+document.body.style.setProperty("--hex-font-family",font);
+
+// ---------------- PARTICLES AND GRID ----------------
 const today=()=>new Date().toISOString().split("T")[0];
 const datePlus=n=>{const d=new Date();d.setDate(d.getDate()+n);return d;}
 const key=d=>d.toISOString().split("T")[0];
 
 function getAutoDays(){
   const t=today();
-  let s=JSON.parse(localStorage.getItem(autoKey)||"{}");
+  let s=JSON.parse(localStorage.getItem(getKey("hexAutoDays"))||"{}");
   if(!s.date) s={date:t,days:60};
   const diff=(new Date(t)-new Date(s.date))/86400000;
   if(diff>0){s.days+=diff;s.date=t;}
-  localStorage.setItem(autoKey,JSON.stringify(s));
+  localStorage.setItem(getKey("hexAutoDays"),JSON.stringify(s));
   return s.days;
 }
+
 let days=getAutoDays();
 daysSlider.value=daysInput.value=days;
 daysSlider.oninput=()=>{days=+daysSlider.value;daysInput.value=days;render();}
 daysInput.onchange=()=>{days=Math.min(500,Math.max(1,+daysInput.value||1));daysSlider.value=days;render();}
 
+// override and setDay
 overrideBtn.onclick=()=>{ override=!override; overrideBtn.textContent=override?"Override: ON":"Override: OFF"; grayBtn.style.display=override?"inline-block":"none"; }
 
 document.getElementById("animSwitch").onchange=function(){
-  animEnabled=this.checked; localStorage.setItem("animEnabled",animEnabled); render();
+  animEnabled=this.checked; localStorage.setItem(getKey("animEnabled"),animEnabled); render();
 };
 document.getElementById("hexTint").oninput=function(){
-  hexTint=this.value; localStorage.setItem("hexTint",hexTint); document.body.style.setProperty("--hex-tint",hexTint); render();
+  hexTint=this.value; localStorage.setItem(getKey("hexTint"),hexTint); document.body.style.setProperty("--hex-tint",hexTint); render();
 };
 document.getElementById("fontSelect").onchange=function(){
-  font=this.value; localStorage.setItem("font",font); document.body.style.fontFamily=font;
+  font=this.value; localStorage.setItem(getKey("font"),font); document.body.style.setProperty("--hex-font-family",font); render();
 };
 document.getElementById("fontSizeInput").oninput=function(){
-  fontSize=this.value; localStorage.setItem("fontSize",fontSize); document.body.style.setProperty("--font-size",fontSize+"px"); render();
+  hexFontSize=this.value; localStorage.setItem(getKey("fontSize"),hexFontSize); document.body.style.setProperty("--hex-font-size",hexFontSize+"px"); render();
 };
 
-let GH={owner:"23CadenS", repo:"Habit-Tracker", path:"data.json", token:localStorage.getItem("ghToken"), sha:null};
+let GH={owner:"23CadenS", repo:"Habit-Tracker", path:"data.json", token:localStorage.getItem(getKey("ghToken")), sha:null};
 let unsaved=false;
 const syncStatus=document.getElementById("syncStatus");
 
 async function saveToken(){
-  GH.token=document.getElementById("ghToken").value;
-  localStorage.setItem("ghToken",GH.token);
+  let val=document.getElementById("ghToken").value.trim();
+  activeProfile=val?val:"default";
+  localStorage.setItem("activeProfile",activeProfile);
+  GH.token=val; localStorage.setItem(getKey("ghToken"),val);
   syncStatus.textContent="Checking token...";
   try{
     const res=await fetch("https://api.github.com/user",{headers:{Authorization:"token "+GH.token}});
     if(!res.ok) throw new Error("Token invalid");
     syncStatus.textContent="Connected ✓";
     await loadDataFromGitHub();
-    await applySettingsFromGitHub();
   }catch(e){ syncStatus.textContent="Token invalid ❌"; }
 }
-
-window.addEventListener("beforeunload", e=>{ if(unsaved){ e.preventDefault(); e.returnValue=""; } });
 
 function setDay(color){
   if(!selected) return;
   const k=key(selected);
   if(!override && k!==today()) return;
   if(color===null) delete data[k]; else data[k]=color;
-  unsaved=true; render(); autoSave();
+  unsaved=true; render();
+  localStorage.setItem(getKey("hexData"),JSON.stringify(data));
 }
 
 function calcStreaks(){
@@ -343,6 +357,7 @@ const parts=[...Array(100)].map(()=>({x:Math.random()*innerWidth,y:Math.random()
 addEventListener("mousemove",e=>{
   if(animEnabled) grid.style.transform=`translate(${(e.clientX/innerWidth-.5)*16}px,${(e.clientY/innerHeight-.5)*16}px)`;
 });
+  
 </script>
 </body>
 </html>
