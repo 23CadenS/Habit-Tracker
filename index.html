@@ -7,79 +7,70 @@
 <style>
 body {
     margin: 0;
-    background: #0b0b0b;
-    font-family: Arial, sans-serif;
-    color: #aaa;
-    overflow-x: hidden;
+    background: #080808;
+    font-family: system-ui;
+    color: #bbb;
 }
 
 #app {
-    max-width: 1100px;
+    max-width: 1200px;
     margin: auto;
-    padding: 20px;
+    padding: 20px 20px 140px;
+}
+
+#stats {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 18px;
+    color: #eee;
 }
 
 #grid {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 14px;
-    margin-top: 20px;
-    transition: 0.4s;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.row {
+    display: flex;
+    gap: 10px;
+}
+
+.row.offset {
+    margin-left: 45px;
 }
 
 .hex {
-    width: 90px;
-    height: 52px;
-    background: #2c2c2c;
+    width: var(--w);
+    height: calc(var(--w) * 0.58);
+    background: #2b2b2b;
     position: relative;
-    border-radius: 10px;
-    cursor: pointer;
+    clip-path: polygon(
+        25% 0%, 75% 0%,
+        100% 50%,
+        75% 100%, 25% 100%,
+        0% 50%
+    );
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #888;
-    font-size: 12px;
-    text-align: center;
-    transition: 0.4s;
+    font-size: 11px;
+    color: #aaa;
+    cursor: pointer;
+    transition: 0.3s;
 }
 
-.hex:before,
-.hex:after {
-    content: "";
-    position: absolute;
-    width: 0;
-    border-left: 45px solid transparent;
-    border-right: 45px solid transparent;
-}
+.hex.green { background: #1f7f50; color: #d9ffef; }
+.hex.red { background: #7f1f1f; color: #ffd9d9; }
+.hex.yellow { background: #7f7320; color: #fff6b3; }
 
-.hex:before {
-    bottom: 100%;
-    border-bottom: 26px solid #2c2c2c;
-}
-
-.hex:after {
-    top: 100%;
-    border-top: 26px solid #2c2c2c;
-}
-
-.hex.green, .hex.green:before, .hex.green:after {
-    background: #1f7a4d;
-    border-bottom-color: #1f7a4d;
-    border-top-color: #1f7a4d;
-    color: #d9ffe9;
-}
-
-.hex.red, .hex.red:before, .hex.red:after {
-    background: #7a1f1f;
-    border-bottom-color: #7a1f1f;
-    border-top-color: #7a1f1f;
-    color: #ffd9d9;
+.hex.today {
+    box-shadow: 0 0 12px white;
 }
 
 .hex.locked {
-    opacity: 0.7;
-    cursor: default;
+    opacity: 0.6;
 }
 
 #controls {
@@ -88,18 +79,17 @@ body {
     left: 0;
     right: 0;
     background: #111;
-    padding: 15px;
+    padding: 14px;
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     justify-content: center;
-    box-shadow: 0 -5px 15px rgba(0,0,0,0.7);
 }
 
 button {
     background: #222;
-    color: #ccc;
     border: none;
+    color: #ddd;
     padding: 10px 16px;
     border-radius: 6px;
     cursor: pointer;
@@ -117,105 +107,126 @@ input[type=range] {
 
 <body>
 <div id="app">
-    <h2>Hex Habit Tracker</h2>
+    <div id="stats">Max streak: <span id="streak">0</span></div>
     <div id="grid"></div>
 </div>
 
 <div id="controls">
-    <button id="yesBtn">Green</button>
-    <button id="noBtn">Red</button>
-    <button id="overrideBtn">Override: Off</button>
+    <button onclick="setDay('green')">Green</button>
+    <button onclick="setDay('yellow')">Yellow</button>
+    <button onclick="setDay('red')">Red</button>
+    <button onclick="setDay(null)">Clear</button>
+    <button id="overrideBtn">Override: OFF</button>
 
-    <label>Days visible
-        <input id="daysSlider" type="range" min="7" max="90" value="30">
-    </label>
-
-    <label>Test offset
-        <input id="testOffset" type="range" min="-30" max="30" value="0">
+    <label>Days forward
+        <input id="daysSlider" type="range" min="7" max="120" value="30">
     </label>
 </div>
 
 <script>
-const dataKey = "hexTracker";
-let data = JSON.parse(localStorage.getItem(dataKey) || "{}");
+const storeKey = "hexData";
+let data = JSON.parse(localStorage.getItem(storeKey) || "{}");
 
-let visibleDays = 30;
-let testOffset = 0;
 let override = false;
-let selectedDay = null;
-
-const grid = document.getElementById("grid");
+let selected = null;
+let days = 30;
 
 document.getElementById("daysSlider").oninput = e => {
-    visibleDays = +e.target.value;
-    render();
-};
-
-document.getElementById("testOffset").oninput = e => {
-    testOffset = +e.target.value;
+    days = +e.target.value;
     render();
 };
 
 document.getElementById("overrideBtn").onclick = () => {
     override = !override;
-    document.getElementById("overrideBtn").innerText = override ? "Override: ON" : "Override: Off";
+    document.getElementById("overrideBtn").innerText = override ? "Override: ON" : "Override: OFF";
 };
 
-document.getElementById("yesBtn").onclick = () => setDay("green");
-document.getElementById("noBtn").onclick = () => setDay("red");
-
 function today() {
+    return new Date().toISOString().split("T")[0];
+}
+
+function datePlus(n) {
     const d = new Date();
-    d.setDate(d.getDate() + testOffset);
+    d.setDate(d.getDate() + n);
     return d;
 }
 
-function format(d) {
+function key(d) {
     return d.toISOString().split("T")[0];
 }
 
 function setDay(color) {
-    if (!selectedDay) return;
-    const key = format(selectedDay);
+    if (!selected) return;
+    const k = key(selected);
 
-    if (!override && key !== format(today())) return;
+    if (!override && k !== today()) return;
 
-    data[key] = color;
-    localStorage.setItem(dataKey, JSON.stringify(data));
+    if (color) data[k] = color;
+    else delete data[k];
+
+    localStorage.setItem(storeKey, JSON.stringify(data));
     render();
 }
 
-function render() {
-    grid.innerHTML = "";
-    selectedDay = null;
+function calcMaxStreak() {
+    let max = 0, current = 0;
+    const keys = Object.keys(data).sort();
+    let last = null;
 
-    const base = today();
-
-    for (let i = visibleDays - 1; i >= 0; i--) {
-        const d = new Date(base);
-        d.setDate(base.getDate() - i);
-        const key = format(d);
-
-        const hex = document.createElement("div");
-        hex.className = "hex";
-
-        if (data[key]) hex.classList.add(data[key]);
-
-        const dateText = d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
-        hex.innerText = dateText;
-
-        const isToday = key === format(today());
-
-        if (!override && !isToday) hex.classList.add("locked");
-
-        hex.onclick = () => {
-            selectedDay = d;
-            document.querySelectorAll(".hex").forEach(h=>h.style.outline="none");
-            hex.style.outline = "2px solid #888";
-        };
-
-        grid.appendChild(hex);
+    for (const k of keys) {
+        if (data[k] === "green") {
+            if (last) {
+                const d1 = new Date(last);
+                const d2 = new Date(k);
+                const diff = (d2 - d1) / 86400000;
+                current = diff === 1 ? current + 1 : 1;
+            } else current = 1;
+            max = Math.max(max, current);
+            last = k;
+        }
     }
+    return max;
+}
+
+function render() {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    const size = 80 - (days * 0.3);
+    document.documentElement.style.setProperty("--w", size + "px");
+
+    let index = 0;
+    for (let r = 0; index < days; r++) {
+        const row = document.createElement("div");
+        row.className = "row" + (r % 2 ? " offset" : "");
+
+        for (let c = 0; c < 8 && index < days; c++) {
+            const d = datePlus(index);
+            const k = key(d);
+
+            const hex = document.createElement("div");
+            hex.className = "hex";
+
+            if (data[k]) hex.classList.add(data[k]);
+            if (k === today()) hex.classList.add("today");
+            if (!override && k !== today()) hex.classList.add("locked");
+
+            hex.innerText = d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+
+            hex.onclick = () => {
+                selected = d;
+                document.querySelectorAll(".hex").forEach(h => h.style.outline = "");
+                hex.style.outline = "2px solid white";
+            };
+
+            row.appendChild(hex);
+            index++;
+        }
+
+        grid.appendChild(row);
+    }
+
+    document.getElementById("streak").innerText = calcMaxStreak();
 }
 
 render();
