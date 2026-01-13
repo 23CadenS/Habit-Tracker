@@ -1,4 +1,12 @@
 {
-  "2026-01-13": "green",
-  "2026-01-14": "yellow"
+  "data": {
+    "2026-01-13": "yellow",
+    "2026-01-14": "yellow"
+  },
+  "settings": {
+    "animEnabled": false,
+    "hexTint": "#333333",
+    "font": "Courier New, monospace",
+    "fontSize": "12"
+  }
 }
