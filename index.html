@@ -6,74 +6,73 @@
 
 <style>
 :root {
-    --hex: 84px;
+    --size: 84px;
 }
 
 body {
     margin: 0;
-    background: radial-gradient(circle at center, #0b0b0b, #050505);
+    background: #050505;
     font-family: system-ui;
-    color: #bbb;
     overflow-x: hidden;
+    color: #ddd;
+}
+
+canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
 }
 
 #app {
+    position: relative;
+    z-index: 2;
+    padding: 20px 20px 160px;
     max-width: 1300px;
     margin: auto;
-    padding: 20px 20px 160px;
 }
 
 #stats {
     text-align: center;
+    margin-bottom: 14px;
     font-size: 18px;
-    margin-bottom: 12px;
-    color: #eee;
 }
 
 #grid {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: calc(var(--hex) * -0.25);
-    transition: 0.4s;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, calc(var(--size) * 1.5));
+    justify-content: center;
+    gap: 0;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.03));
 }
 
-.row {
-    display: flex;
-    gap: calc(var(--hex) * 0.08);
-}
-
-.row.offset {
-    margin-left: calc(var(--hex) * 0.52);
-}
-
-/* True regular hexagon */
+/* Regular hexagon */
 .hex {
-    width: var(--hex);
-    aspect-ratio: 1 / 1.1547;
+    width: var(--size);
+    height: calc(var(--size) * 1.1547);
+    margin: calc(var(--size) * -0.2887) 0;
     background: #2a2a2a;
     clip-path: polygon(
-        25% 6.7%, 75% 6.7%,
-        100% 50%,
-        75% 93.3%, 25% 93.3%,
-        0% 50%
+        50% 0%,
+        100% 25%,
+        100% 75%,
+        50% 100%,
+        0% 75%,
+        0% 25%
     );
-    border-radius: 10%;
+    border-radius: 12%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
     color: #aaa;
     cursor: pointer;
-    transition: 
-        background 0.3s,
-        transform 0.25s,
-        box-shadow 0.3s;
+    transition: 0.3s;
     position: relative;
 }
 
-.hex:hover {
-    transform: scale(1.04);
+.hex:nth-child(odd) {
+    transform: translateY(calc(var(--size) * 0.577));
 }
 
 /* States */
@@ -84,14 +83,11 @@ body {
 /* Today glow */
 .hex.today {
     box-shadow:
-        0 0 14px rgba(255,255,255,0.8),
-        0 0 40px rgba(255,255,255,0.4);
+        0 0 12px rgba(255,255,255,0.8),
+        0 0 30px rgba(255,255,255,0.5);
 }
 
-/* Locked */
-.hex.locked {
-    opacity: 0.6;
-}
+.hex.locked { opacity: 0.6; }
 
 /* Controls */
 #controls {
@@ -99,13 +95,14 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    background: #0d0d0d;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(10px);
     padding: 14px;
     display: flex;
-    flex-wrap: wrap;
     gap: 10px;
+    flex-wrap: wrap;
     justify-content: center;
-    box-shadow: 0 -10px 25px rgba(0,0,0,0.8);
+    z-index: 5;
 }
 
 button, input {
@@ -115,18 +112,15 @@ button, input {
     padding: 10px 14px;
     border-radius: 6px;
 }
+button:hover { background:#333; }
 
-button:hover {
-    background: #333;
-}
-
-input[type=number] {
-    width: 80px;
-}
+input[type=number] { width: 80px; }
 </style>
 </head>
 
 <body>
+<canvas id="bg"></canvas>
+
 <div id="app">
     <div id="stats">Max streak: <span id="streak">0</span></div>
     <div id="grid"></div>
@@ -136,131 +130,140 @@ input[type=number] {
     <button onclick="setDay('green')">Green</button>
     <button onclick="setDay('yellow')">Yellow</button>
     <button onclick="setDay('red')">Red</button>
-
     <button id="overrideBtn">Override: OFF</button>
 
     <label>Days
-        <input id="daysSlider" type="range" min="14" max="365" value="60">
+        <input id="daysSlider" type="range" min="14" max="365" value="90">
     </label>
-    <input id="daysInput" type="number" min="1" max="365" value="60">
+    <input id="daysInput" type="number" min="1" max="365" value="90">
 </div>
 
 <script>
+/* ---------------- data ---------------- */
 const storeKey = "hexData";
 let data = JSON.parse(localStorage.getItem(storeKey) || "{}");
 
-let override = false;
-let selected = null;
-let days = 60;
+let override=false, selected=null, days=90;
 
 const slider = document.getElementById("daysSlider");
 const numberInput = document.getElementById("daysInput");
 
-slider.oninput = () => {
-    days = +slider.value;
-    numberInput.value = days;
-    render();
-};
+slider.oninput = ()=>{days=+slider.value;numberInput.value=days;render();}
+numberInput.onchange=()=>{days=Math.min(365,Math.max(1,+numberInput.value||1));slider.value=days;render();}
 
-numberInput.onchange = () => {
-    days = Math.min(365, Math.max(1, +numberInput.value || 1));
-    slider.value = days;
-    render();
-};
-
-document.getElementById("overrideBtn").onclick = () => {
-    override = !override;
-    document.getElementById("overrideBtn").innerText = override ? "Override: ON" : "Override: OFF";
-};
-
-function today() {
-    return new Date().toISOString().split("T")[0];
+document.getElementById("overrideBtn").onclick=()=>{
+    override=!override;
+    document.getElementById("overrideBtn").innerText=override?"Override: ON":"Override: OFF";
 }
 
-function datePlus(n) {
-    const d = new Date();
-    d.setDate(d.getDate() + n);
-    return d;
-}
+function today(){return new Date().toISOString().split("T")[0];}
+function datePlus(n){let d=new Date();d.setDate(d.getDate()+n);return d;}
+function key(d){return d.toISOString().split("T")[0];}
 
-function key(d) {
-    return d.toISOString().split("T")[0];
-}
-
-function setDay(color) {
-    if (!selected) return;
-    const k = key(selected);
-    if (!override && k !== today()) return;
-    data[k] = color;
-    localStorage.setItem(storeKey, JSON.stringify(data));
+function setDay(color){
+    if(!selected)return;
+    const k=key(selected);
+    if(!override && k!==today())return;
+    data[k]=color;
+    localStorage.setItem(storeKey,JSON.stringify(data));
     render();
 }
 
-/* Max streak */
-function calcMaxStreak() {
-    let max = 0, cur = 0, last = null;
-    Object.keys(data).sort().forEach(k => {
-        if (data[k] === "green") {
-            if (last) {
-                const diff = (new Date(k) - new Date(last)) / 86400000;
-                cur = diff === 1 ? cur + 1 : 1;
-            } else cur = 1;
-            max = Math.max(max, cur);
-            last = k;
+function calcMaxStreak(){
+    let max=0,cur=0,last=null;
+    Object.keys(data).sort().forEach(k=>{
+        if(data[k]==="green"){
+            if(last){
+                let diff=(new Date(k)-new Date(last))/86400000;
+                cur=diff===1?cur+1:1;
+            } else cur=1;
+            max=Math.max(max,cur);
+            last=k;
         }
     });
     return max;
 }
 
-/* Mouse reactive glow */
-document.addEventListener("mousemove", e => {
-    const x = e.clientX / window.innerWidth * 100;
-    const y = e.clientY / window.innerHeight * 100;
-    document.body.style.background =
-        `radial-gradient(circle at ${x}% ${y}%, #101010, #050505)`;
-});
+/* ---------------- render ---------------- */
+function render(){
+    const grid=document.getElementById("grid");
+    grid.innerHTML="";
 
-function render() {
-    const grid = document.getElementById("grid");
-    grid.innerHTML = "";
+    const size=Math.max(36,96-days*0.15);
+    document.documentElement.style.setProperty("--size",size+"px");
 
-    const size = Math.max(36, 90 - days * 0.12);
-    document.documentElement.style.setProperty("--hex", size + "px");
+    for(let i=0;i<days;i++){
+        const d=datePlus(i);
+        const k=key(d);
+        const hex=document.createElement("div");
+        hex.className="hex";
+        if(data[k])hex.classList.add(data[k]);
+        if(k===today())hex.classList.add("today");
+        if(!override && k!==today())hex.classList.add("locked");
 
-    let index = 0;
-    for (let r = 0; index < days; r++) {
-        const row = document.createElement("div");
-        row.className = "row" + (r % 2 ? " offset" : "");
+        hex.textContent=d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
 
-        for (let c = 0; c < 9 && index < days; c++) {
-            const d = datePlus(index);
-            const k = key(d);
-
-            const hex = document.createElement("div");
-            hex.className = "hex";
-
-            if (data[k]) hex.classList.add(data[k]);
-            if (k === today()) hex.classList.add("today");
-            if (!override && k !== today()) hex.classList.add("locked");
-
-            hex.textContent = d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
-
-            hex.onclick = () => {
-                selected = d;
-                document.querySelectorAll(".hex").forEach(h => h.style.outline = "");
-                hex.style.outline = "2px solid white";
-            };
-
-            row.appendChild(hex);
-            index++;
-        }
-        grid.appendChild(row);
+        hex.onclick=()=>{
+            selected=d;
+            document.querySelectorAll(".hex").forEach(h=>h.style.outline="");
+            hex.style.outline="2px solid white";
+        };
+        grid.appendChild(hex);
     }
 
-    document.getElementById("streak").textContent = calcMaxStreak();
+    document.getElementById("streak").textContent=calcMaxStreak();
 }
 
 render();
+
+/* ---------------- particles ---------------- */
+const canvas=document.getElementById("bg");
+const ctx=canvas.getContext("2d");
+let w,h,mouse={x:0,y:0};
+let particles=[];
+
+function resize(){
+    w=canvas.width=window.innerWidth;
+    h=canvas.height=window.innerHeight;
+}
+window.onresize=resize;
+resize();
+
+for(let i=0;i<120;i++){
+    particles.push({
+        x:Math.random()*w,
+        y:Math.random()*h,
+        vx:(Math.random()-0.5)*0.4,
+        vy:(Math.random()-0.5)*0.4,
+        r:Math.random()*2+1
+    });
+}
+
+document.onmousemove=e=>{mouse.x=e.clientX;mouse.y=e.clientY;}
+
+function loop(){
+    ctx.clearRect(0,0,w,h);
+    for(let p of particles){
+        p.x+=p.vx;
+        p.y+=p.vy;
+
+        if(p.x<0||p.x>w)p.vx*=-1;
+        if(p.y<0||p.y>h)p.vy*=-1;
+
+        const dx=p.x-mouse.x;
+        const dy=p.y-mouse.y;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+
+        const glow=Math.max(0,150-dist)/150;
+
+        ctx.fillStyle=`rgba(255,255,255,${0.08+glow*0.4})`;
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.r+glow*3,0,Math.PI*2);
+        ctx.fill();
+    }
+    requestAnimationFrame(loop);
+}
+loop();
 </script>
 </body>
 </html>
