@@ -143,12 +143,21 @@ input[type=range]::-moz-range-thumb { height:18px; width:18px; border-radius:50%
 const settingsPanel=document.getElementById("settingsPanel");
 document.getElementById("settingsToggle").onclick=()=>settingsPanel.classList.toggle("open");
 
-let storeKey="hexData", autoKey="hexAutoDays", data=JSON.parse(localStorage.getItem(storeKey)||"{}"), override=false, selected=null;
-let animEnabled=localStorage.getItem("animEnabled")!=="false"; document.getElementById("animSwitch").checked=animEnabled;
-let hexTint=localStorage.getItem("hexTint")||"#3b2b5f"; document.getElementById("hexTint").value=hexTint;
-let fontSize=localStorage.getItem("fontSize")||10; document.getElementById("fontSizeInput").value=fontSize;
+let storeKey="hexData", autoKey="hexAutoDays";
+let data=JSON.parse(localStorage.getItem(storeKey)||"{}");
+let override=false, selected=null;
+
+let animEnabled=localStorage.getItem("animEnabled")!=="false"; 
+document.getElementById("animSwitch").checked=animEnabled;
+let hexTint=localStorage.getItem("hexTint")||"#3b2b5f";
+document.getElementById("hexTint").value=hexTint;
+let fontSize=localStorage.getItem("fontSize")||10;
+document.getElementById("fontSizeInput").value=fontSize;
 document.body.style.setProperty("--hex-tint",hexTint);
 document.body.style.setProperty("--font-size",fontSize+"px");
+let font=localStorage.getItem("font")||"'Press Start 2P', cursive";
+document.body.style.fontFamily=font;
+document.getElementById("fontSelect").value=font;
 
 const today=()=>new Date().toISOString().split("T")[0];
 const datePlus=n=>{const d=new Date();d.setDate(d.getDate()+n);return d;}
@@ -177,7 +186,7 @@ document.getElementById("hexTint").oninput=function(){
   hexTint=this.value; localStorage.setItem("hexTint",hexTint); document.body.style.setProperty("--hex-tint",hexTint); render();
 };
 document.getElementById("fontSelect").onchange=function(){
-  document.body.style.fontFamily=this.value; localStorage.setItem("font",this.value);
+  font=this.value; localStorage.setItem("font",font); document.body.style.fontFamily=font;
 };
 document.getElementById("fontSizeInput").oninput=function(){
   fontSize=this.value; localStorage.setItem("fontSize",fontSize); document.body.style.setProperty("--font-size",fontSize+"px"); render();
@@ -195,6 +204,8 @@ async function saveToken(){
     const res=await fetch("https://api.github.com/user",{headers:{Authorization:"token "+GH.token}});
     if(!res.ok) throw new Error("Token invalid");
     syncStatus.textContent="Connected ✓";
+    await loadDataFromGitHub();
+    await applySettingsFromGitHub();
   }catch(e){ syncStatus.textContent="Token invalid ❌"; }
 }
 
@@ -239,42 +250,79 @@ function render(){
 }
 render(); onresize=render;
 
+// Load from GitHub
+async function loadDataFromGitHub() {
+    if (!GH.token) return;
+    syncStatus.textContent = "Loading data...";
+    try {
+        const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
+            headers:{ Authorization: "token " + GH.token }
+        });
+        const body = await res.json();
+        if(body.content){
+            const parsed = JSON.parse(atob(body.content));
+            if(parsed.data) data = parsed.data;
+            unsaved=false;
+            render();
+            GH.sha = body.sha;
+            syncStatus.textContent = "Loaded ✓";
+            localStorage.setItem(storeKey, JSON.stringify(data));
+        }
+    } catch(e){ console.error(e); syncStatus.textContent="Error loading ❌"; }
+}
+
+// Apply saved settings from GitHub
+async function applySettingsFromGitHub() {
+    if(!GH.token) return;
+    try {
+        const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
+            headers:{ Authorization: "token " + GH.token }
+        });
+        const body = await res.json();
+        if(body.content){
+            const saved = JSON.parse(atob(body.content));
+            if(saved.settings){
+                animEnabled = saved.settings.animEnabled;
+                hexTint = saved.settings.hexTint;
+                font = saved.settings.font;
+                fontSize = saved.settings.fontSize;
+
+                document.getElementById("animSwitch").checked = animEnabled;
+                document.getElementById("hexTint").value = hexTint;
+                document.getElementById("fontSelect").value = font;
+                document.getElementById("fontSizeInput").value = fontSize;
+
+                document.body.style.setProperty("--hex-tint",hexTint);
+                document.body.style.fontFamily = font;
+                document.body.style.setProperty("--font-size",fontSize+"px");
+                render();
+            }
+        }
+    } catch(e){ console.error(e); }
+}
+
 // Auto-save to GitHub
 async function autoSave(){
     if(!GH.token) return;
     syncStatus.textContent="Saving...";
-    const content = btoa(JSON.stringify(data,null,2));
-
-    try {
-        // Check if file exists
+    const payload = btoa(JSON.stringify({data,settings:{
+        animEnabled, hexTint, font, fontSize
+    }}, null, 2));
+    try{
         let res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
             headers:{Authorization:"token "+GH.token}
         });
         let body = await res.json();
-        let sha = body.sha || null; // If file exists, use SHA, else null
-
+        let sha = body.sha || null;
         res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
             method:"PUT",
             headers:{ Authorization:"token "+GH.token, "Content-Type":"application/json" },
-            body: JSON.stringify({
-                message:"Update habit data",
-                content: content,
-                sha: sha
-            })
+            body: JSON.stringify({message:"Update habit data", content: payload, sha: sha})
         });
         const result = await res.json();
-        if(result.content){ 
-            GH.sha = result.content.sha; 
-            unsaved = false; 
-            syncStatus.textContent="Saved ✓"; 
-        } else {
-            syncStatus.textContent="Error saving ❌";
-            console.error(result);
-        }
-    } catch(e){
-        syncStatus.textContent="Error saving ❌";
-        console.error(e);
-    }
+        if(result.content){ GH.sha = result.content.sha; unsaved=false; syncStatus.textContent="Saved ✓"; }
+        else syncStatus.textContent="Error saving ❌";
+    } catch(e){ syncStatus.textContent="Error saving ❌"; console.error(e);}
 }
 
 // PARTICLES
