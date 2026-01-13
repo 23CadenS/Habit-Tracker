@@ -3,25 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Hex Habit Tracker</title>
-
 <style>
-
-#githubLogin {
-  position: fixed;
-  bottom: 12px;
-  left: 12px;
-  background: #111;
-  padding: 10px;
-  border-radius: 10px;
-  z-index: 9999;   /* 🔥 THIS IS THE FIX */
-}
-
-#githubLogin input {
-  background: #000;
-  color: #fff;
-  border: 1px solid #444;
-}
-
 :root { --hex-size: 86px; }
 
 body {
@@ -32,137 +14,77 @@ body {
     overflow-x: hidden;
 }
 
-canvas {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-}
+canvas { position: fixed; inset: 0; z-index: 0; }
 
-#app {
-    position: relative;
-    z-index: 2;
-    padding: 20px 20px 170px;
-    max-width: 1400px;
-    margin: auto;
-}
+#app { position: relative; z-index: 2; padding: 20px 20px 170px; max-width: 1400px; margin: auto; }
 
-#stats {
-    text-align: center;
-    margin-bottom: 16px;
-    font-size: 18px;
-}
+#stats { text-align: center; margin-bottom: 16px; font-size: 18px; }
 
-#grid {
-    position: relative;
-    margin: auto;
-    transition: transform 0.15s ease-out;
-}
+#grid { position: relative; margin: auto; transition: transform 0.15s ease-out; }
 
 .hex {
     position: absolute;
     width: var(--hex-size);
     height: calc(var(--hex-size) * 0.866);
     background: #2b2b2b;
-    clip-path: polygon(
-        26% 3%,
-        74% 3%,
-        97% 50%,
-        74% 97%,
-        26% 97%,
-        3% 50%
-    );
-    border-radius: 20%;
-
-    box-shadow:
-        0 0 0 1.4px rgba(255,255,255,0.75),
-        0 0 12px rgba(255,255,255,0.55),
-        0 0 26px rgba(255,255,255,0.25),
-        inset 0 0 10px rgba(255,255,255,0.18);
-
+    clip-path: polygon(26% 3%,74% 3%,97% 50%,74% 97%,26% 97%,3% 50%);
+    border-radius: 25%;
+    box-shadow: 0 0 0 1.4px rgba(255,255,255,0.75),0 0 12px rgba(255,255,255,0.55),0 0 26px rgba(255,255,255,0.25),inset 0 0 10px rgba(255,255,255,0.18);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
     color: #e0e0e0;
     cursor: pointer;
-
-    transition:
-        transform 0.15s cubic-bezier(.2,1.4,.4,1),
-        box-shadow 0.15s cubic-bezier(.2,1.4,.4,1),
-        background 0.15s;
+    transition: transform 0.15s cubic-bezier(.2,1.4,.4,1), box-shadow 0.15s cubic-bezier(.2,1.4,.4,1), background 0.15s;
 }
 
 .hex:hover {
-    transform: scale(1.14) translateY(-6px);
-    box-shadow:
-        0 0 0 1.8px rgba(255,255,255,1),
-        0 0 26px rgba(255,255,255,1),
-        0 0 60px rgba(255,255,255,0.6),
-        inset 0 0 18px rgba(255,255,255,0.35);
+    transform: scale(1.18) translateY(-8px);
+    box-shadow:0 0 0 1.8px rgba(255,255,255,1),0 0 26px rgba(255,255,255,1),0 0 60px rgba(255,255,255,0.6),inset 0 0 18px rgba(255,255,255,0.35);
     z-index: 5;
 }
 
-/* COLORS */
-.green {
-    background: #1f7f50;
-    box-shadow:
-        0 0 0 1.6px rgba(220,255,235,1),
-        0 0 24px rgba(90,255,200,0.85),
-        0 0 60px rgba(60,200,150,0.55);
-}
-.red {
-    background: #7f1f1f;
-    box-shadow:
-        0 0 0 1.6px rgba(255,220,220,1),
-        0 0 24px rgba(255,90,90,0.85),
-        0 0 60px rgba(200,60,60,0.55);
-}
-.yellow {
-    background: #7f7320;
-    box-shadow:
-        0 0 0 1.6px rgba(255,245,200,1),
-        0 0 24px rgba(255,230,130,0.9),
-        0 0 60px rgba(200,180,70,0.55);
-}
+.green { background: #1f7f50; box-shadow:0 0 0 1.6px rgba(220,255,235,1),0 0 24px rgba(90,255,200,0.85),0 0 60px rgba(60,200,150,0.55);}
+.red { background: #7f1f1f; box-shadow:0 0 0 1.6px rgba(255,220,220,1),0 0 24px rgba(255,90,90,0.85),0 0 60px rgba(200,60,60,0.55);}
+.yellow { background: #7f7320; box-shadow:0 0 0 1.6px rgba(255,245,200,1),0 0 24px rgba(255,230,130,0.9),0 0 60px rgba(200,180,70,0.55);}
 
-/* TODAY */
-.today {
-    box-shadow:
-        0 0 0 2.2px white,
-        0 0 34px rgba(255,255,255,1),
-        0 0 80px rgba(255,255,255,0.9),
-        0 0 140px rgba(255,255,255,0.5);
-}
+.today { box-shadow:0 0 0 2.2px white,0 0 34px rgba(255,255,255,1),0 0 80px rgba(255,255,255,0.9),0 0 140px rgba(255,255,255,0.5); }
 
-/* LOCKED */
 .locked { opacity: 0.55; }
 
 #controls {
-    position: fixed;
-    bottom: 0;
-    inset-inline: 0;
-    background: #0d0d0d;
-    padding: 14px;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
+    position: fixed; bottom: 0; inset-inline: 0;
+    background: #0d0d0d; padding: 14px;
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
     box-shadow: 0 -10px 30px rgba(0,0,0,0.9);
     z-index: 3;
 }
 
 button, input {
-    background: #222;
-    border: none;
-    color: #ddd;
-    padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 14px;
+    background: #222; border: none; color: #ddd; padding: 10px 14px; border-radius: 6px; font-size: 14px;
 }
-
 button:hover { background: #333; }
 input[type=number] { width: 80px; }
+
 #grayBtn { display: none; }
+
+#githubLogin {
+    position: fixed;
+    bottom: 80px; /* above controls */
+    left: 12px;
+    background: #111;
+    padding: 10px;
+    border-radius: 10px;
+    z-index: 9999;
+}
+
+#githubLogin input { background: #000; color:#fff; border:1px solid #444; }
+
+#syncStatus {
+    position: fixed; bottom: 12px; right: 12px; font-size: 12px; color: #fff; font-family: sans-serif; z-index: 9999;
+}
+
 </style>
 </head>
 
@@ -188,30 +110,16 @@ input[type=number] { width: 80px; }
     <input id="daysInput" type="number" min="1" max="500">
 </div>
 
+<div id="githubLogin">
+  <input id="ghToken" placeholder="GitHub Token" type="password">
+  <button onclick="saveToken()">Connect GitHub</button>
+</div>
+
+<div id="syncStatus">Not connected</div>
+
 <script>
-
-    const GH = {
-  owner: "23CadenS",
-  repo: "Habit-Tracker",
-  path: "data.json",
-  api: "https://api.github.com/repos",
-  token: localStorage.getItem("ghToken"),
-  sha: null
-};
-
-function saveToken() {
-  localStorage.setItem(
-    "ghToken",
-    document.getElementById("ghToken").value
-  );
-  location.reload();
-}
-
-    
-const storeKey="hexData", autoKey="hexAutoDays";
-let data=JSON.parse(localStorage.getItem(storeKey)||"{}");
-let override=false;
-let selected=null;
+let storeKey="hexData", autoKey="hexAutoDays", data=JSON.parse(localStorage.getItem(storeKey)||"{}"), override=false, selected=null;
+let saving=false;
 
 const today=()=>new Date().toISOString().split("T")[0];
 const datePlus=n=>{const d=new Date();d.setDate(d.getDate()+n);return d;}
@@ -226,8 +134,8 @@ function getAutoDays(){
     localStorage.setItem(autoKey,JSON.stringify(s));
     return s.days;
 }
-let days=getAutoDays();
 
+let days=getAutoDays();
 daysSlider.value=daysInput.value=days;
 
 daysSlider.oninput=()=>{days=+daysSlider.value;daysInput.value=days;render();}
@@ -238,16 +146,6 @@ overrideBtn.onclick=()=>{
     overrideBtn.textContent=override?"Override: ON":"Override: OFF";
     grayBtn.style.display=override?"inline-block":"none";
 };
-
-function setDay(color){
-    if(!selected) return;
-    const k=key(selected);
-    if(!override && k!==today()) return;
-    if(color===null) delete data[k];
-    else data[k]=color;
-    localStorage.setItem(storeKey,JSON.stringify(data));
-    render();
-}
 
 function calcStreaks(){
     let max=0,cur=0,prev=null;
@@ -262,7 +160,7 @@ function calcStreaks(){
         const k=key(datePlus(i));
         if(data[k]==="green") run++; else break;
     }
-    return{max,cur:run};
+    return {max,cur:run};
 }
 
 function render(){
@@ -278,10 +176,7 @@ function render(){
         const hex=document.createElement("div");
         hex.className="hex";
         if(data[k]) hex.classList.add(data[k]);
-        if(k===today()) {
-            hex.classList.add("today");
-            selected=d; // 🔥 AUTO-SELECT TODAY
-        }
+        if(k===today()) { hex.classList.add("today"); selected=d; }
         if(!override && k!==today()) hex.classList.add("locked");
         hex.textContent=d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
         hex.style.left=(col*gap)+"px";
@@ -289,7 +184,6 @@ function render(){
         hex.onclick=()=>selected=d;
         grid.appendChild(hex);
     }
-
     grid.style.width=(Math.ceil(days/rows)*gap+w)+"px";
     grid.style.height=(rows*h+h)+"px";
 
@@ -317,11 +211,69 @@ const parts=[...Array(100)].map(()=>({x:Math.random()*innerWidth,y:Math.random()
 addEventListener("mousemove",e=>{
     grid.style.transform=`translate(${(e.clientX/innerWidth-.5)*16}px,${(e.clientY/innerHeight-.5)*16}px)`;
 });
+
+/* GITHUB SYNC */
+const GH = { owner:"23CadenS", repo:"Habit-Tracker", path:"data.json", api:"https://api.github.com/repos", token:localStorage.getItem("ghToken"), sha:null };
+const syncStatus=document.getElementById("syncStatus");
+
+function saveToken(){
+    const t=document.getElementById("ghToken").value;
+    localStorage.setItem("ghToken",t);
+    location.reload();
+}
+
+async function ghFetch(){
+    if(!GH.token){ syncStatus.textContent="No GitHub token"; return null; }
+    try{
+        const res=await fetch(`${GH.api}/${GH.owner}/${GH.repo}/contents/${GH.path}`,{ headers:{ Authorization:`Bearer ${GH.token}` }});
+        if(!res.ok) throw new Error(res.statusText);
+        const d=await res.json();
+        GH.sha=d.sha;
+        const content=JSON.parse(atob(d.content));
+        syncStatus.textContent="Synced ✓";
+        return content;
+    }catch(e){ console.error(e); syncStatus.textContent="GitHub fetch error"; return null; }
+}
+
+async function ghSave(payload){
+    if(!GH.token){ syncStatus.textContent="No GitHub token"; return; }
+    saving=true; syncStatus.textContent="Saving...";
+    try{
+        const res=await fetch(`${GH.api}/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
+            method:"PUT",
+            headers:{ Authorization:`Bearer ${GH.token}`, "Content-Type":"application/json" },
+            body:JSON.stringify({ message:"Update habit data", content:btoa(JSON.stringify(payload)), sha:GH.sha })
+        });
+        if(!res.ok) throw new Error(res.statusText);
+        const d=await res.json(); GH.sha=d.content.sha;
+        syncStatus.textContent="Synced ✓";
+    }catch(e){ console.error(e); syncStatus.textContent="GitHub save error"; }
+    saving=false;
+}
+
+/* SAVE ON HEX CHANGE */
+function setDay(color){
+    if(!selected) return;
+    const k=key(selected);
+    if(!override && k!==today()) return;
+    if(color===null) delete data[k]; else data[k]=color;
+    localStorage.setItem(storeKey,JSON.stringify(data));
+    render();
+    ghSave({days:data});
+}
+
+/* AUTO-LOAD DATA */
+(async()=>{
+    const cloud=await ghFetch();
+    if(cloud && cloud.days) data=cloud.days;
+    render();
+})();
+
+/* WARN ON UNSAVED LEAVE */
+window.addEventListener("beforeunload", e=>{
+    if(saving){ e.preventDefault(); e.returnValue="Changes are saving. Are you sure you want to leave?"; }
+});
 </script>
-<div id="githubLogin">
-  <input id="ghToken" placeholder="GitHub Token" type="password">
-  <button onclick="saveToken()">Connect GitHub</button>
-</div>
 
 </body>
 </html>
