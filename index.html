@@ -241,19 +241,40 @@ render(); onresize=render;
 
 // Auto-save to GitHub
 async function autoSave(){
-  if(!GH.token) return;
-  syncStatus.textContent="Saving...";
-  const content=btoa(JSON.stringify(data,null,2));
-  try{
-    const res=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
-      method:"PUT",
-      headers:{ Authorization:"token "+GH.token, "Content-Type":"application/json" },
-      body:JSON.stringify({message:"Update habit data", content:content, sha:GH.sha})
-    });
-    const result=await res.json();
-    if(result.content){ GH.sha=result.content.sha; unsaved=false; syncStatus.textContent="Saved ✓"; }
-    else syncStatus.textContent="Error saving ❌";
-  }catch(e){ syncStatus.textContent="Error saving ❌"; }
+    if(!GH.token) return;
+    syncStatus.textContent="Saving...";
+    const content = btoa(JSON.stringify(data,null,2));
+
+    try {
+        // Check if file exists
+        let res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
+            headers:{Authorization:"token "+GH.token}
+        });
+        let body = await res.json();
+        let sha = body.sha || null; // If file exists, use SHA, else null
+
+        res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`,{
+            method:"PUT",
+            headers:{ Authorization:"token "+GH.token, "Content-Type":"application/json" },
+            body: JSON.stringify({
+                message:"Update habit data",
+                content: content,
+                sha: sha
+            })
+        });
+        const result = await res.json();
+        if(result.content){ 
+            GH.sha = result.content.sha; 
+            unsaved = false; 
+            syncStatus.textContent="Saved ✓"; 
+        } else {
+            syncStatus.textContent="Error saving ❌";
+            console.error(result);
+        }
+    } catch(e){
+        syncStatus.textContent="Error saving ❌";
+        console.error(e);
+    }
 }
 
 // PARTICLES
