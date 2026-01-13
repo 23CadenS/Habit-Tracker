@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Hex Habit Tracker</title>
+
+<style>
+body {
+    margin: 0;
+    background: #0d0d0d;
+    font-family: sans-serif;
+    color: #ccc;
+    display: flex;
+    justify-content: center;
+}
+
+#container {
+    width: 100%;
+    max-width: 900px;
+    padding: 40px;
+}
+
+h1 {
+    text-align: center;
+    color: #999;
+    letter-spacing: 2px;
+}
+
+#grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 40px;
+}
+
+.hex {
+    width: 80px;
+    height: 46px;
+    background: #333;
+    position: relative;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.hex:before,
+.hex:after {
+    content: "";
+    position: absolute;
+    width: 0;
+    border-left: 40px solid transparent;
+    border-right: 40px solid transparent;
+}
+
+.hex:before {
+    bottom: 100%;
+    border-bottom: 23px solid #333;
+}
+
+.hex:after {
+    top: 100%;
+    border-top: 23px solid #333;
+}
+
+.hex.green,
+.hex.green:before,
+.hex.green:after {
+    background: #1e7f43;
+    border-bottom-color: #1e7f43;
+    border-top-color: #1e7f43;
+}
+
+.hex.red,
+.hex.red:before,
+.hex.red:after {
+    background: #7f1e1e;
+    border-bottom-color: #7f1e1e;
+    border-top-color: #7f1e1e;
+}
+
+.hex.locked {
+    cursor: default;
+    opacity: 0.8;
+}
+</style>
+</head>
+
+<body>
+<div id="container">
+<h1>Hex Habit Tracker</h1>
+<div id="grid"></div>
+</div>
+
+<script>
+const startDateKey = "hexStartDate";
+const dataKey = "hexData";
+
+let startDate = localStorage.getItem(startDateKey);
+if (!startDate) {
+    startDate = new Date().toISOString().split("T")[0];
+    localStorage.setItem(startDateKey, startDate);
+}
+
+const today = new Date();
+const start = new Date(startDate);
+const daysPassed = Math.floor((today - start) / (1000 * 60 * 60 * 24)) + 1;
+
+let data = JSON.parse(localStorage.getItem(dataKey) || "{}");
+
+const grid = document.getElementById("grid");
+
+for (let i = 1; i <= daysPassed; i++) {
+    const hex = document.createElement("div");
+    hex.classList.add("hex");
+
+    if (data[i]) {
+        hex.classList.add(data[i]);
+        if (i < daysPassed) hex.classList.add("locked");
+    }
+
+    if (i === daysPassed && !data[i]) {
+        hex.onclick = () => {
+            const choice = confirm("OK = Green (success)\nCancel = Red (fail)") ? "green" : "red";
+            data[i] = choice;
+            localStorage.setItem(dataKey, JSON.stringify(data));
+            location.reload();
+        };
+    } else {
+        hex.classList.add("locked");
+    }
+
+    grid.appendChild(hex);
+}
+</script>
+</body>
+</html>
