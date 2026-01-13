@@ -6,14 +6,16 @@
 
 <style>
 
-    #githubLogin {
+#githubLogin {
   position: fixed;
   bottom: 12px;
   left: 12px;
   background: #111;
   padding: 10px;
   border-radius: 10px;
+  z-index: 9999;   /* 🔥 THIS IS THE FIX */
 }
+
 #githubLogin input {
   background: #000;
   color: #fff;
