@@ -5,6 +5,21 @@
 <title>Hex Habit Tracker</title>
 
 <style>
+
+    #githubLogin {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  background: #111;
+  padding: 10px;
+  border-radius: 10px;
+}
+#githubLogin input {
+  background: #000;
+  color: #fff;
+  border: 1px solid #444;
+}
+
 :root { --hex-size: 86px; }
 
 body {
@@ -172,6 +187,25 @@ input[type=number] { width: 80px; }
 </div>
 
 <script>
+
+    const GH = {
+  owner: "23CadenS",
+  repo: "Habit-Tracker",
+  path: "data.json",
+  api: "https://api.github.com/repos",
+  token: localStorage.getItem("ghToken"),
+  sha: null
+};
+
+function saveToken() {
+  localStorage.setItem(
+    "ghToken",
+    document.getElementById("ghToken").value
+  );
+  location.reload();
+}
+
+    
 const storeKey="hexData", autoKey="hexAutoDays";
 let data=JSON.parse(localStorage.getItem(storeKey)||"{}");
 let override=false;
@@ -282,6 +316,10 @@ addEventListener("mousemove",e=>{
     grid.style.transform=`translate(${(e.clientX/innerWidth-.5)*16}px,${(e.clientY/innerHeight-.5)*16}px)`;
 });
 </script>
+<div id="githubLogin">
+  <input id="ghToken" placeholder="GitHub Token" type="password">
+  <button onclick="saveToken()">Connect GitHub</button>
+</div>
 
 </body>
 </html>
